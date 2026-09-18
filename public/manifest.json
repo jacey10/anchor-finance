@@ -1,0 +1,18 @@
+{
+  "name": "Anchor Finance",
+  "short_name": "Anchor",
+  "description": "Personal finance tracker",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0F1B2D",
+  "theme_color": "#0F1B2D",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "type": "image/svg+xml",
+      "sizes": "any",
+      "purpose": "any maskable"
+    }
+  ]
+}
