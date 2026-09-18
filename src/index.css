@@ -372,3 +372,25 @@ input, select { font-family: inherit; }
   color: var(--text-bright); font-size: 14px; margin-bottom: 16px;
 }
 .loading { padding: 40px; text-align: center; color: var(--text-muted); font-family: var(--font-serif); }
+/* Pie Chart Legend */
+.pie-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: center;
+  margin-top: 16px;
+  padding: 12px;
+  background: var(--bg-card-alt);
+  border-radius: 6px;
+}
+.legend-item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-muted); }
+.legend-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+.legend-text { font-weight: 500; color: var(--text-secondary); }
+
+/* Net Worth Cards */
+.networth-cards { display: grid; grid-template-columns: 1fr; gap: 12px; margin-bottom: 20px; }
+.networth-card { background: var(--bg-card); border: 1px solid var(--border-card); border-radius: 6px; padding: 16px; }
+.networth-card.main { background: var(--bg-card-alt); border: 1px solid var(--accent-gold); }
+.networth-label { font-size: 12px; color: var(--text-muted); margin-bottom: 6px; }
+.networth-value { font-family: var(--font-serif); font-size: 24px; font-weight: 500; color: var(--text-bright); }
+.networth-card.main .networth-value { color: var(--accent-gold); }
