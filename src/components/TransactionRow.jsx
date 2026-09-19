@@ -6,7 +6,9 @@ export default function TransactionRow({ transaction, onDelete }) {
     <div className="list-row">
       <div className="list-row-content">
         <div className="list-row-title">
-          {transaction.category || transaction.person}
+          {/* FIX: Added transaction.source to the list of things to check */}
+          {transaction.category || transaction.person || transaction.source}
+          
           {transaction.support_type && ` · ${transaction.support_type}`}
           {transaction.impulse && <span className="tag-impulse">Impulse</span>}
         </div>

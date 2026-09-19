@@ -19,7 +19,7 @@ export default function NetWorth() {
         getSetting('usd_holdings')
       ]);
       
-      const calculated = calculateNetWorth(txs, start, rate);
+      const calculated = calculateNetWorth(txs, start, rate, usdHoldings || 0);
       setData({ ...calculated, usdHoldings: usdHoldings || 0 });
       setExchangeRate(rate);
       setDraftUSD(String(usdHoldings || 0));
@@ -32,7 +32,11 @@ export default function NetWorth() {
     const value = Number(draftUSD);
     if (value >= 0) {
       await updateSetting('usd_holdings', value);
-      setData(prev => ({ ...prev, usdHoldings: value }));
+      const [txs, start, rate] = await Promise.all([
+        getTransactions(), getSetting('starting_balance'), getSetting('exchange_rate'),
+      ]);
+      const recalculated = calculateNetWorth(txs, start, rate, value);
+      setData({ ...recalculated, usdHoldings: value });
       setIsEditingUSD(false);
     }
   };

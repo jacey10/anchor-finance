@@ -66,6 +66,28 @@ input, select { font-family: inherit; }
   background: #0B1522;
 }
 
+/* Sidebar Logo Fix */
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  margin-bottom: 32px;
+  padding: 0 16px;
+}
+
+.brand-mark {
+  font-size: 22px;
+  line-height: 1;
+}
+
+.brand-name {
+  font-family: var(--font-serif);
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--text-bright);
+}
+
 /* Sidebar Footer & Avatar */
 .sidebar-footer {
   margin-top: auto;
@@ -289,7 +311,7 @@ input, select { font-family: inherit; }
   font-size: 18px;
   font-weight: 500;
   margin: 0 0 14px 0;
-  color: var(--text-primary);
+  color: var(--text-secondary)!important;
 }
 
 /* Cards & Grids */
@@ -459,8 +481,50 @@ input, select { font-family: inherit; }
   padding: 8px 16px;
   font-size: 13px;
 }
+
 .family-person-name { font-size: 12px; color: var(--text-muted); margin-bottom: 4px; }
 .family-person-amount { font-family: var(--font-serif); font-size: 14px; font-weight: 500; }
+
+/* Add Baseline Button Styling */
+.add-baseline-btn {
+  margin-top: 16px;
+  width: 100%;
+  justify-content: center;
+  border-style: dashed;
+}
+.add-baseline-btn:hover {
+  border-color: var(--accent-gold);
+  color: var(--accent-gold);
+}
+
+/* Delete Button Styling */
+.list-row-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.delete-item-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 4px;
+  border-radius: 4px;
+  transition: all 0.2s;
+  opacity: 0; /* Hidden by default until hovered */
+}
+
+.list-row:hover .delete-item-btn {
+  opacity: 1; /* Shows up when you hover over the row */
+}
+
+.delete-item-btn:hover {
+  color: #EF4444; /* Turns red on hover */
+  background: rgba(239, 68, 68, 0.1);
+}
 
 /* Empty State Styling */
 .empty-state {
@@ -1309,4 +1373,6 @@ input, select { font-family: inherit; }
   .auth-main-title { font-size: 40px; }
   .auth-sub-title { font-size: 28px; }
 }
+
+
 

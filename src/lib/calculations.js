@@ -1,7 +1,7 @@
 // ── Net Worth Engine ──
-export const calculateNetWorth = (transactions, startingBalance, exchangeRate) => {
+export const calculateNetWorth = (transactions, startingBalance, exchangeRate, usdHoldings = 0) => {
   let ngnTotal = startingBalance;
-  let usdTotal = 0;
+  let usdTotal = usdHoldings;
 
   transactions.forEach((tx) => {
     if (tx.type === 'income') {

@@ -15,7 +15,7 @@ export default function Sidebar({ activeScreen, setScreen, onLogout }) {
   return (
     <nav className="sidebar">
       <div className="brand" onClick={() => setScreen('dashboard')}>
-        <span className="brand-mark"></span>
+        <span className="brand-mark">⚓</span>
         <span className="brand-name">Anchor</span>
       </div>
       

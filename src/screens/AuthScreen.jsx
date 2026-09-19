@@ -36,6 +36,8 @@ export default function AuthScreen({ defaultMode = 'signin' }) {
         const { data, error } = await supabase.auth.signUp({ email, password });
         if (error) throw error;
         
+        // If Supabase returns a session, it means email confirmation is OFF.
+        // We should log them in and send them to the dashboard immediately.n
         if (data.session) {
           // FIX: Force reload to clear memory
           window.location.href = '/app'; 

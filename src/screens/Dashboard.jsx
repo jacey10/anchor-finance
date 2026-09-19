@@ -68,8 +68,8 @@ export default function Dashboard() {
 
     useEffect(() => {
     const loadData = async () => {
-      const [transactions, goals, startingBalance, exchangeRate] = await Promise.all([
-        getTransactions(), getGoals(), getSetting('starting_balance'), getSetting('exchange_rate'),
+      const [transactions, goals, startingBalance, exchangeRate, usdHoldings] = await Promise.all([
+        getTransactions(), getGoals(), getSetting('starting_balance'), getSetting('exchange_rate'), getSetting('usd_holdings'),
       ]);
 
       // Calculate Previous Month Key
@@ -82,7 +82,7 @@ export default function Dashboard() {
       const prevMonthTxs = transactions.filter(tx => tx.date.startsWith(prevMonthKey));
       
       const summary = calculateMonthlySummary(currentMonthTxs, currentMonth);
-      const netWorthData = calculateNetWorth(transactions, startingBalance, exchangeRate);
+      const netWorthData = calculateNetWorth(transactions, startingBalance, exchangeRate, usdHoldings || 0);
 
       // Calculate Monthly Changes
       const currentIncome = currentMonthTxs.filter(tx => tx.type === 'income').reduce((sum, tx) => sum + tx.amount, 0);
@@ -127,8 +127,8 @@ export default function Dashboard() {
     const refreshData = async () => {
     const goals = await getGoals();
     const transactions = await getTransactions();
-    const [startingBalance, exchangeRate] = await Promise.all([getSetting('starting_balance'), getSetting('exchange_rate')]);
-    const netWorthData = calculateNetWorth(transactions, startingBalance, exchangeRate);
+    const [startingBalance, exchangeRate, usdHoldings] = await Promise.all([getSetting('starting_balance'), getSetting('exchange_rate'), getSetting('usd_holdings')]);
+    const netWorthData = calculateNetWorth(transactions, startingBalance, exchangeRate, usdHoldings || 0);
     
     const prevMonthDate = new Date(currentMonth + '-01');
     prevMonthDate.setMonth(prevMonthDate.getMonth() - 1);

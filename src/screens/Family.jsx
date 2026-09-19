@@ -58,6 +58,25 @@ export default function Family() {
     setPeople(updatedPeople);
   };
 
+    const handleUpdateBudget = async (name, newBudget) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    const { error } = await supabase
+      .from('people')
+      .update({ budget: newBudget })
+      .eq('name', name)
+      .eq('user_id', user.id);
+
+    if (error) {
+      alert('Error updating budget: ' + error.message);
+      return;
+    }
+
+    // Refresh the list
+    const updatedPeople = await getPeople();
+    setPeople(updatedPeople);
+  };
+
   const handleAdd = async (tx) => {
     await addTransaction({ ...tx, type: 'family_support' });
     const newTxs = await getTransactions({ type: 'family_support' });
@@ -84,6 +103,28 @@ export default function Family() {
       }
     }
     return true;
+  };
+
+    const handleDeleteMember = async (name) => {
+    if (!window.confirm(`Are you sure you want to remove ${name} from your family support list?`)) return;
+
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    // Delete from Supabase
+    const { error } = await supabase
+      .from('people')
+      .delete()
+      .eq('name', name)
+      .eq('user_id', user.id);
+
+    if (error) {
+      alert('Error deleting member: ' + error.message);
+      return;
+    }
+
+    // Refresh the list
+    const updatedPeople = await getPeople();
+    setPeople(updatedPeople);
   };
 
   const handleConfirmOverage = async () => {
@@ -160,9 +201,10 @@ export default function Family() {
           </div>
           <BaselineTab 
             items={people.map(p => ({ key: p.name, name: p.name, value: p.budget || 0 }))} 
-            onUpdate={(name, val) => {}} 
+            onUpdate={handleUpdateBudget}
             total={people.reduce((sum, p) => sum + (p.budget || 0), 0)} 
-            totalLabel="Total family support budget" 
+            totalLabel="Total family support budget"
+            onDelete={handleDeleteMember} // <-- ADD THIS
           />
         </div>
       ) : (

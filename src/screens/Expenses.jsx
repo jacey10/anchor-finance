@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { supabase } from '../lib/supabase';
 import { getCategories, getTransactions, addTransaction, deleteTransaction } from '../lib/storage';
 import { formatNaira } from '../lib/format';
 import BaselineTab from '../components/BaselineTab';
@@ -24,6 +25,58 @@ export default function Expenses() {
     loadData();
   }, []);
 
+  const handleAddCategory = async () => {
+    const name = prompt('Enter new expense category name (e.g., Groceries, Transport):');
+    if (!name || name.trim() === '') return;
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    // Insert into Supabase
+    const { error } = await supabase
+      .from('categories')
+      .insert([
+        {
+          name: name.trim(),
+          user_id: user.id,
+          baseline: 0 // Start with a 0 budget
+          // type: 'expense' // <-- UNCOMMENT THIS LINE ONLY if your 'categories' table has a 'type' column
+        }
+      ]);
+
+    if (error) {
+      alert('Error adding category: ' + error.message);
+      return;
+    }
+
+    // Refresh the list. 
+    // Note: Make sure you import getCategories from your storage file if you haven't already!
+    const updatedCategories = await getCategories(); 
+    setCategories(updatedCategories);
+  };
+
+  const handleDeleteCategory = async (name) => {
+    if (!window.confirm(`Are you sure you want to delete the "${name}" category?`)) return;
+
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    // Delete from Supabase
+    const { error } = await supabase
+      .from('categories')
+      .delete()
+      .eq('name', name)
+      .eq('user_id', user.id);
+
+    if (error) {
+      alert('Error deleting category: ' + error.message);
+      return;
+    }
+
+    // Refresh the list (Make sure getCategories is imported!)
+    const updatedCategories = await getCategories(); 
+    setCategories(updatedCategories);
+  };
+
   const handleAdd = async (tx) => {
     await addTransaction({ ...tx, type: 'expense' });
     const newTxs = await getTransactions({ type: 'expense' });
@@ -36,7 +89,23 @@ export default function Expenses() {
   };
 
   const handleUpdateBaseline = async (categoryName, amount) => {
+    // 1. Update the screen immediately so it feels fast
     setCategories(categories.map(c => c.name === categoryName ? { ...c, baseline: amount } : c));
+
+    // 2. Save it to Supabase
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { error } = await supabase
+      .from('categories')
+      .update({ baseline: amount })
+      .eq('name', categoryName)
+      .eq('user_id', user.id); // Crucial for Row Level Security!
+
+    if (error) {
+      console.error('Error updating baseline:', error.message);
+      alert('Failed to save budget to database.');
+    }
   };
 
   // Filter transactions by date range
@@ -65,10 +134,14 @@ export default function Expenses() {
         <BaselineTab 
           items={categories.map(c => ({ key: c.name, name: c.name, value: c.baseline || 0 }))} 
           onUpdate={handleUpdateBaseline} 
-          total={totalBaseline} 
-          totalLabel="Minimum monthly requirement" 
+          total={categories.reduce((sum, c) => sum + (c.baseline || 0), 0)} 
+          totalLabel="Total monthly expense budget"
+          onAdd={handleAddCategory}
+          addButtonText="+ Add Expense Category"
+          onDelete={handleDeleteCategory} // <-- ADD THIS
         />
       ) : (
+      
         <div>
           {/* Date Range Filter */}
           <div className="form-card" style={{ marginBottom: 20, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-end', gap: 12 }}>
