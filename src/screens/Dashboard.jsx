@@ -11,8 +11,17 @@ import ConfirmDialog from '../components/ConfirmDialog';
 const COLORS = ['#B8935F', '#8FA98A', '#5A7F9F', '#B87C6B', '#9F8FA9', '#7FA9BF', '#D4A373', '#A98FA9'];
 
 export default function Dashboard() {
-  const [data, setData] = useState({ netWorth: 0, income: 0, expenses: 0, goals: [], expenseBreakdown: [] });
+  const [data, setData] = useState({ 
+    netWorth: 0, 
+    income: 0, 
+    expenses: 0, 
+    goals: [], 
+    expenseBreakdown: [] 
+  });
   const [loading, setLoading] = useState(true);
+  
+  // Month picker state (defaults to current month)
+  const [currentMonth, setCurrentMonth] = useState(new Date().toISOString().slice(0, 7));
   
   const [payingGoal, setPayingGoal] = useState(null);
   const [editingGoal, setEditingGoal] = useState(null);
@@ -21,19 +30,21 @@ export default function Dashboard() {
   const [payForm, setPayForm] = useState({ amount: '', date: new Date().toISOString().slice(0, 10), note: '' });
   const [editForm, setEditForm] = useState({ name: '', target: '', deadline: '' });
 
-  useEffect(() => {
+  /*useEffect(() => {
     const loadData = async () => {
       const [transactions, goals, startingBalance, exchangeRate] = await Promise.all([
         getTransactions(), getGoals(), getSetting('starting_balance'), getSetting('exchange_rate'),
       ]);
 
-      const currentMonth = new Date().toISOString().slice(0, 7);
-      const summary = calculateMonthlySummary(transactions, currentMonth);
+      // Filter transactions for selected month
+      const monthlyTransactions = transactions.filter(tx => tx.date.startsWith(currentMonth));
+      
+      const summary = calculateMonthlySummary(monthlyTransactions, currentMonth);
       const netWorthData = calculateNetWorth(transactions, startingBalance, exchangeRate);
 
-      // Calculate Pie Chart Data
+      // Calculate Pie Chart Data (ONLY for selected month)
       const breakdownMap = {};
-      transactions.filter(tx => tx.type === 'expense').forEach(tx => {
+      monthlyTransactions.filter(tx => tx.type === 'expense').forEach(tx => {
         const cat = tx.category || 'Other';
         breakdownMap[cat] = (breakdownMap[cat] || 0) + tx.amount;
       });
@@ -53,23 +64,111 @@ export default function Dashboard() {
       setLoading(false);
     };
     loadData();
-  }, []);
+  }, [currentMonth]);*/ // Re-run when month changes
 
-  const refreshData = async () => {
+    useEffect(() => {
+    const loadData = async () => {
+      const [transactions, goals, startingBalance, exchangeRate] = await Promise.all([
+        getTransactions(), getGoals(), getSetting('starting_balance'), getSetting('exchange_rate'),
+      ]);
+
+      // Calculate Previous Month Key
+      const prevMonthDate = new Date(currentMonth + '-01');
+      prevMonthDate.setMonth(prevMonthDate.getMonth() - 1);
+      const prevMonthKey = prevMonthDate.toISOString().slice(0, 7);
+
+      // Filter transactions
+      const currentMonthTxs = transactions.filter(tx => tx.date.startsWith(currentMonth));
+      const prevMonthTxs = transactions.filter(tx => tx.date.startsWith(prevMonthKey));
+      
+      const summary = calculateMonthlySummary(currentMonthTxs, currentMonth);
+      const netWorthData = calculateNetWorth(transactions, startingBalance, exchangeRate);
+
+      // Calculate Monthly Changes
+      const currentIncome = currentMonthTxs.filter(tx => tx.type === 'income').reduce((sum, tx) => sum + tx.amount, 0);
+      const currentExpense = currentMonthTxs.filter(tx => tx.type !== 'income').reduce((sum, tx) => sum + tx.amount, 0);
+      const currentDelta = currentIncome - currentExpense;
+
+      const prevIncome = prevMonthTxs.filter(tx => tx.type === 'income').reduce((sum, tx) => sum + tx.amount, 0);
+      const prevExpense = prevMonthTxs.filter(tx => tx.type !== 'income').reduce((sum, tx) => sum + tx.amount, 0);
+      const prevDelta = prevIncome - prevExpense;
+
+      let percentageChange = 0;
+      if (prevDelta !== 0) {
+        percentageChange = ((currentDelta - prevDelta) / Math.abs(prevDelta)) * 100;
+      }
+
+      // Pie Chart Data
+      const breakdownMap = {};
+      currentMonthTxs.filter(tx => tx.type === 'expense').forEach(tx => {
+        const cat = tx.category || 'Other';
+        breakdownMap[cat] = (breakdownMap[cat] || 0) + tx.amount;
+      });
+      const expenseBreakdown = Object.entries(breakdownMap).map(([name, value]) => ({ name, value }));
+
+      setData({
+        netWorth: netWorthData.total,
+        income: summary.income,
+        expenses: summary.totalOutflow,
+        goals,
+        expenseBreakdown,
+        monthlyChange: currentDelta,
+        percentageChange: percentageChange,
+        trend: [
+          { month: 'Apr', value: 420000 }, 
+          { month: 'Sep', value: netWorthData.total },
+        ],
+      });
+      setLoading(false);
+    };
+    loadData();
+  }, [currentMonth]); // Re-run when month changes
+
+    const refreshData = async () => {
     const goals = await getGoals();
     const transactions = await getTransactions();
     const [startingBalance, exchangeRate] = await Promise.all([getSetting('starting_balance'), getSetting('exchange_rate')]);
     const netWorthData = calculateNetWorth(transactions, startingBalance, exchangeRate);
-    const summary = calculateMonthlySummary(transactions, new Date().toISOString().slice(0, 7));
     
+    const prevMonthDate = new Date(currentMonth + '-01');
+    prevMonthDate.setMonth(prevMonthDate.getMonth() - 1);
+    const prevMonthKey = prevMonthDate.toISOString().slice(0, 7);
+
+    const currentMonthTxs = transactions.filter(tx => tx.date.startsWith(currentMonth));
+    const prevMonthTxs = transactions.filter(tx => tx.date.startsWith(prevMonthKey));
+    
+    const summary = calculateMonthlySummary(currentMonthTxs, currentMonth);
+    
+    const currentIncome = currentMonthTxs.filter(tx => tx.type === 'income').reduce((sum, tx) => sum + tx.amount, 0);
+    const currentExpense = currentMonthTxs.filter(tx => tx.type !== 'income').reduce((sum, tx) => sum + tx.amount, 0);
+    const currentDelta = currentIncome - currentExpense;
+
+    const prevIncome = prevMonthTxs.filter(tx => tx.type === 'income').reduce((sum, tx) => sum + tx.amount, 0);
+    const prevExpense = prevMonthTxs.filter(tx => tx.type !== 'income').reduce((sum, tx) => sum + tx.amount, 0);
+    const prevDelta = prevIncome - prevExpense;
+
+    let percentageChange = 0;
+    if (prevDelta !== 0) {
+      percentageChange = ((currentDelta - prevDelta) / Math.abs(prevDelta)) * 100;
+    }
+
     const breakdownMap = {};
-    transactions.filter(tx => tx.type === 'expense').forEach(tx => {
+    currentMonthTxs.filter(tx => tx.type === 'expense').forEach(tx => {
       const cat = tx.category || 'Other';
       breakdownMap[cat] = (breakdownMap[cat] || 0) + tx.amount;
     });
     const expenseBreakdown = Object.entries(breakdownMap).map(([name, value]) => ({ name, value }));
 
-    setData(prev => ({ ...prev, goals, netWorth: netWorthData.total, income: summary.income, expenses: summary.totalOutflow, expenseBreakdown }));
+    setData(prev => ({ 
+      ...prev, 
+      goals, 
+      netWorth: netWorthData.total, 
+      income: summary.income, 
+      expenses: summary.totalOutflow, 
+      expenseBreakdown,
+      monthlyChange: currentDelta,
+      percentageChange: percentageChange
+    }));
   };
 
   const handlePaySubmit = async (e) => {
@@ -102,13 +201,48 @@ export default function Dashboard() {
     }
   };
 
+  // Month picker helpers
+  const handlePrevMonth = () => {
+    const date = new Date(currentMonth + '-01');
+    date.setMonth(date.getMonth() - 1);
+    setCurrentMonth(date.toISOString().slice(0, 7));
+  };
+
+  const handleNextMonth = () => {
+    const date = new Date(currentMonth + '-01');
+    date.setMonth(date.getMonth() + 1);
+    setCurrentMonth(date.toISOString().slice(0, 7));
+  };
+
+  const monthName = new Date(currentMonth + '-01').toLocaleString('default', { month: 'long', year: 'numeric' });
+
   if (loading) return <div className="loading">Loading your finances...</div>;
 
   return (
     <div className="screen">
+      {/* Month Picker */}
+      <div className="month-selector">
+        <button className="btn-icon" onClick={handlePrevMonth}>←</button>
+        <span className="month-label">{monthName}</span>
+        <button className="btn-icon" onClick={handleNextMonth}>→</button>
+      </div>
+
       <header className="page-header">
         <p className="eyebrow">Where things stand</p>
         <h1 className="hero-number">{formatNaira(data.netWorth)}</h1>
+        
+        {/* Only show the change if there is actual activity this month */}
+        {(data.income > 0 || data.expenses > 0) && (
+          <div className="networth-change">
+            <span className={`change-value ${data.monthlyChange >= 0 ? 'positive' : 'negative'}`}>
+              {data.monthlyChange >= 0 ? '▲' : '▼'} {formatNaira(Math.abs(data.monthlyChange))}
+            </span>
+            <span className="change-percent">
+              ({data.percentageChange.toFixed(1)}% vs last month)
+            </span>
+          </div>
+        )}
+        
         <p className="hero-sub">Total Net Worth</p>
       </header>
 
@@ -123,20 +257,19 @@ export default function Dashboard() {
         </div>
       </section>
 
-      {/* NEW: Pie Chart Section */}
+      {/* Pie Chart Section (Filtered by selected month) */}
       {data.expenses > 0 && (
         <section className="section">
           <h2 className="section-title">Where your money went</h2>
           <div className="chart-wrap" style={{ padding: '16px 0' }}>
-            <ResponsiveContainer width="100%" height={220}>
+            <ResponsiveContainer width="100%" height={250}>
               <PieChart>
                 <Pie
                   data={data.expenseBreakdown}
                   cx="50%"
                   cy="50%"
-                  innerRadius={55}
-                  outerRadius={85}
-                  paddingAngle={3}
+                  outerRadius={90} 
+                  paddingAngle={2}
                   dataKey="value"
                 >
                   {data.expenseBreakdown.map((entry, index) => (
@@ -149,13 +282,18 @@ export default function Dashboard() {
                 />
               </PieChart>
             </ResponsiveContainer>
+            
             <div className="pie-legend">
-              {data.expenseBreakdown.map((entry, index) => (
-                <div key={entry.name} className="legend-item">
-                  <span className="legend-dot" style={{ background: COLORS[index % COLORS.length] }} />
-                  <span className="legend-text">{entry.name}</span>
-                </div>
-              ))}
+              {data.expenseBreakdown.map((entry, index) => {
+                const percentage = Math.round((entry.value / data.expenses) * 100);
+                return (
+                  <div key={entry.name} className="legend-item">
+                    <span className="legend-dot" style={{ background: COLORS[index % COLORS.length] }} />
+                    <span className="legend-text">{entry.name}</span>
+                    <span className="legend-value">{formatNaira(entry.value)} ({percentage}%)</span>
+                  </div>
+                );
+              })}
             </div>
           </div>
         </section>

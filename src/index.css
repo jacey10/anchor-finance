@@ -395,3 +395,62 @@ input, select { font-family: inherit; }
 .networth-label { font-size: 12px; color: var(--text-muted); margin-bottom: 6px; }
 .networth-value { font-family: var(--font-serif); font-size: 24px; font-weight: 500; color: var(--text-bright); }
 .networth-card.main .networth-value { color: var(--accent-gold); }
+
+/* Month Selector */
+.month-selector {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  margin-bottom: 24px;
+  padding: 12px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-card);
+  border-radius: 6px;
+}
+
+.month-label {
+  font-family: var(--font-serif);
+  font-size: 18px;
+  font-weight: 500;
+  color: var(--text-bright);
+  min-width: 140px;
+  text-align: center;
+}
+
+.month-selector .btn-icon {
+  font-size: 20px;
+  color: var(--text-muted);
+  padding: 4px 8px;
+  border-radius: 4px;
+  background: var(--bg-main);
+  border: 1px solid var(--border-subtle);
+}
+
+.month-selector .btn-icon:hover {
+  color: var(--text-bright);
+  border-color: var(--accent-gold);
+}
+
+/* Net Worth Change Indicator */
+.networth-change {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  font-size: 14px;
+}
+
+.change-value {
+  font-family: var(--font-serif);
+  font-weight: 600;
+  font-size: 16px;
+}
+
+.change-value.positive { color: var(--accent-green); }
+.change-value.negative { color: var(--accent-red); }
+
+.change-percent {
+  color: var(--text-muted);
+  font-size: 13px;
+}
