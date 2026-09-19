@@ -28,11 +28,20 @@ export default function AuthScreen({ defaultMode = 'signin' }) {
       if (isLogin) {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
-        navigate('/app', { replace: true }); // Redirect to dashboard on success
+        
+        // FIX: Force reload to clear memory
+        window.location.href = '/app'; 
+
       } else {
-        const { error } = await supabase.auth.signUp({ email, password });
+        const { data, error } = await supabase.auth.signUp({ email, password });
         if (error) throw error;
-        setMessage('Account created! Please check your email to confirm.');
+        
+        if (data.session) {
+          // FIX: Force reload to clear memory
+          window.location.href = '/app'; 
+        } else {
+          setMessage('Account created! Please check your email to confirm.');
+        }
       }
     } catch (err) {
       setError(err.message);

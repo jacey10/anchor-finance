@@ -49,8 +49,10 @@ function ProtectedRoute({ children }) {
 function AppLayout() {
   const [activeScreen, setScreen] = useState('dashboard');
 
+  // FIX: Force a full page reload on logout to clear React memory
   const handleLogout = async () => {
     await supabase.auth.signOut();
+    window.location.href = '/signin'; 
   };
 
   return (
