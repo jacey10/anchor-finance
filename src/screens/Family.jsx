@@ -69,27 +69,45 @@ export default function Family() {
       <h1 className="screen-title">Family Support</h1>
       <p className="screen-sub">What you can give this month, by person.</p>
 
-      <div className="tab-row">
-        <button className={`tab-button ${tab === 'budget' ? 'active' : ''}`} onClick={() => setTab('budget')}>Budget</button>
-        <button className={`tab-button ${tab === 'given' ? 'active' : ''}`} onClick={() => setTab('given')}>Given</button>
-      </div>
-
-      {tab === 'budget' ? (
-        <BaselineTab 
-          items={people.map(p => ({ key: p.name, name: p.name, value: p.budget || 0 }))} 
-          onUpdate={(name, val) => {}} 
-          total={people.reduce((sum, p) => sum + (p.budget || 0), 0)} 
-          totalLabel="Total family support budget" 
-        />
+      {people.length === 0 ? (
+        // --- EMPTY STATE FOR NEW USERS ---
+        <div className="empty-state">
+          <div className="empty-icon">👨‍‍👧</div>
+          <h3 className="empty-title">No family members added yet</h3>
+          <p className="empty-subtitle">
+            Use this space to track financial support for parents, siblings, or children. 
+            If you don't need this feature, you can simply ignore this tab!
+          </p>
+          <button className="btn btn-primary" onClick={() => setTab('budget')}>
+            Add your first member
+          </button>
+        </div>
       ) : (
-        <LogTab 
-          transactions={transactions} 
-          categories={people.map(p => ({ name: p.name, baseline: p.budget }))} 
-          type="family_support" 
-          onAdd={handleAdd} 
-          onDelete={handleDelete} // Fixed: passes the wrapper function
-          onBeforeAdd={handleBeforeAdd}
-        />
+        // --- NORMAL VIEW FOR YOU ---
+        <>
+          <div className="tab-row">
+            <button className={`tab-button ${tab === 'budget' ? 'active' : ''}`} onClick={() => setTab('budget')}>Budget</button>
+            <button className={`tab-button ${tab === 'given' ? 'active' : ''}`} onClick={() => setTab('given')}>Given</button>
+          </div>
+
+          {tab === 'budget' ? (
+            <BaselineTab 
+              items={people.map(p => ({ key: p.name, name: p.name, value: p.budget || 0 }))} 
+              onUpdate={(name, val) => {}} 
+              total={people.reduce((sum, p) => sum + (p.budget || 0), 0)} 
+              totalLabel="Total family support budget" 
+            />
+          ) : (
+            <LogTab 
+              transactions={transactions} 
+              categories={people.map(p => ({ name: p.name, baseline: p.budget }))} 
+              type="family_support" 
+              onAdd={handleAdd} 
+              onDelete={handleDelete}
+              onBeforeAdd={handleBeforeAdd}
+            />
+          )}
+        </>
       )}
 
       {warning && (

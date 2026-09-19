@@ -22,10 +22,10 @@ export default function LandingPage() {
           </nav>
           
           <div className="header-actions">
-            <button className="btn btn-ghost" onClick={() => navigate('/auth', { state: { isLogin: true } })}>
+            <button className="btn btn-ghost" onClick={() => navigate('/signin')}>
               Sign In
             </button>
-            <button className="btn btn-primary" onClick={() => navigate('/auth', { state: { isLogin: false } })}>
+            <button className="btn btn-primary" onClick={() => navigate('/signup')}>
               Get Started
             </button>
           </div>
@@ -47,7 +47,7 @@ export default function LandingPage() {
               smart budgeting, and powerful insights. Build wealth with confidence.
             </p>
             <div className="hero-actions">
-              <button className="btn btn-primary btn-large" onClick={() => navigate('/auth', { state: { isLogin: false } })}>
+              <button className="btn btn-primary btn-large" onClick={() => navigate('/signup')}>
                 Start Free Trial
               </button>
               <button className="btn btn-outline btn-large" onClick={() => document.getElementById('how-it-works').scrollIntoView({ behavior: 'smooth' })}>
@@ -192,7 +192,7 @@ export default function LandingPage() {
           <div className="cta-content">
             <h2>Ready to Take Control?</h2>
             <p>Join thousands of users who are building wealth with Anchor.</p>
-            <button className="btn btn-primary btn-large" onClick={() => navigate('/auth', { state: { isLogin: false } })}>
+            <button className="btn btn-primary btn-large" onClick={() => navigate('/signup')}>
               Get Started Free
             </button>
           </div>
