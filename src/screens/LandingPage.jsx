@@ -273,6 +273,9 @@ export default function LandingPage() {
 
           <div className="footer-bottom">
             <p>&copy; {new Date().getFullYear()} Anchor Finance. All rights reserved.</p>
+            <p className="footer-credit">
+              Built with care by <a href="https://jacey10.vercel.app" target="_blank" rel="noopener noreferrer">Jacey</a>
+            </p>
             <div className="social-links">
               <a href="#">Twitter</a>
               <a href="#">LinkedIn</a>

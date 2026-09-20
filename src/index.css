@@ -1219,6 +1219,23 @@ input, select { font-family: inherit; }
   margin: 0;
 }
 
+.footer-credit {
+  color: var(--text-faint);
+  font-size: 13px;
+  margin: 0;
+}
+
+.footer-credit a {
+  color: var(--text-faint);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  transition: color 0.2s;
+}
+
+.footer-credit a:hover {
+  color: var(--accent-gold);
+}
+
 .social-links {
   display: flex;
   gap: 20px;
