@@ -1173,7 +1173,7 @@ input, select { font-family: inherit; }
   margin-bottom: 40px;
 }
 
-.footer-brand .logo { margin-bottom: 12px; }
+.footer-brand .logo {display: flex; align-items: center; gap: 0.35rem; margin-bottom: 12px; }
 
 .footer-brand p {
   color: var(--text-faint);
@@ -1346,9 +1346,9 @@ input, select { font-family: inherit; }
 }
 
 .auth-main-title {
-  font-family: var(--font-sans);
-  font-size: 32px;
-  font-weight: 700;
+  font-family: var(--font-serif);
+  font-size: 18px;
+  font-weight: 300;
   color: #111827;
   margin: 0 0 8px 0;
 }

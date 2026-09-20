@@ -13,8 +13,8 @@ export default function LandingPage() {
       <header className="landing-header">
         <div className="header-container">
           <div className="logo">
-            <span className="logo-icon"></span>
-            <span className="logo-text">Anchor</span>
+            <span className="brand-mark">⚓</span>
+            <span className="logo-text">Anchor Vault</span>
           </div>
 
           <nav className="nav-links">
@@ -243,8 +243,8 @@ export default function LandingPage() {
           <div className="footer-grid">
             <div className="footer-brand">
               <div className="logo">
-                <span className="logo-icon"></span>
-                <span className="logo-text">Anchor</span>
+                <span className="brand-mark">⚓</span>
+                <span className="logo-text">Anchor Vault</span>
               </div>
               <p>Empowering you to build wealth and achieve financial freedom.</p>
             </div>
