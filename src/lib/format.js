@@ -1,8 +1,11 @@
 // Formats full Naira amounts (e.g., ₦1,400,000)
 export const formatNaira = (n) => {
-  // FIX: If n is null, undefined, or NaN, return 0 instead of crashing
-  if (!n || isNaN(n)) return '₦0'; 
+  // If it's still loading (null), return an empty string so nothing flashes
+  if (n === null || n === undefined) return ''; 
+  
+  // If it's actually zero, show zero
   if (n === 0) return '₦0';
+  
   return '₦' + n.toLocaleString('en-NG', { maximumFractionDigits: 0 });
 };
 
