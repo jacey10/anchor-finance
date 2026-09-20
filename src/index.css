@@ -1348,7 +1348,7 @@ input, select { font-family: inherit; }
   font-family: var(--font-serif);
   font-size: 25px;
   font-weight: 300;
-  background: linear-gradient(90deg, #00B4DB, #74ca98);
+  background: linear-gradient(90deg, #005A78, #4FAF7D);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -1491,6 +1491,9 @@ input, select { font-family: inherit; }
     background-image: url('/auth-bg.png'); 
     background-size: cover;
     background-position: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
 
   @media (max-width: 767px) {
@@ -1555,7 +1558,7 @@ input, select { font-family: inherit; }
     max-width: 400px;
   }
 
-  .auth-main-title { font-size: 32px; font-weight: 500;}
+  .auth-main-title { font-size: 32px; font-weight: 500; background: linear-gradient(90deg, #00B4DB, #74ca98);}
   .auth-sub-title { font-size: 17px; }
 }
 
