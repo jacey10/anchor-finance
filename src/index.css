@@ -1558,7 +1558,9 @@ input, select { font-family: inherit; }
     max-width: 400px;
   }
 
-  .auth-main-title { font-size: 32px; font-weight: 500; background: linear-gradient(90deg, #00B4DB, #74ca98);}
+  .auth-main-title { font-size: 32px; font-weight: 500; background: linear-gradient(90deg, #00B4DB, #74ca98); margin: 0; -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;}
   .auth-sub-title { font-size: 17px; }
 }
 
