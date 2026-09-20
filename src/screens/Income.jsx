@@ -3,7 +3,7 @@ import { getTransactions, addTransaction, deleteTransaction } from '../lib/stora
 import { formatNaira } from '../lib/format';
 import TransactionRow from '../components/TransactionRow';
 
-const INCOME_SOURCES = ['Freelance (Web Dev)', 'Job/Internship', 'Tutoring'];
+const INCOME_SOURCES = ['Freelance (Web Dev)', 'Job/Internship', 'Tutoring', 'Starting Balance'];
 
 export default function Income() {
   const [transactions, setTransactions] = useState([]);

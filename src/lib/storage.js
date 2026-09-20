@@ -1,26 +1,43 @@
 import { supabase } from './supabase.js';
 
+// Helper to get the current logged-in user's ID
+const getUserId = async () => {
+  const { data: { user } } = await supabase.auth.getUser();
+  return user?.id;
+};
+
 // ── Settings (Starting Balance & Exchange Rate) ──
 export const getSetting = async (key) => {
+  const userId = await getUserId();
+  if (!userId) return 0;
+
   const { data, error } = await supabase
     .from('settings')
     .select('value')
     .eq('key', key)
+    .eq('user_id', userId)
     .single();
-  if (error) throw error;
+
+  // PGRST116 is the error code for "no rows found". We return 0 instead of crashing.
+  if (error && error.code !== 'PGRST116') throw error;
   return data ? parseFloat(data.value) : 0;
 };
 
 export const updateSetting = async (key, value) => {
+  const userId = await getUserId();
+  if (!userId) return;
+
   const { error } = await supabase
     .from('settings')
-    .upsert({ key, value: String(value) });
+    .upsert({ key, value: String(value), user_id: userId }, { onConflict: 'user_id,key' });
+
   if (error) throw error;
 };
 
 // ── Transactions (Income, Expenses, Family Support) ──
 export const getTransactions = async (filters = {}) => {
-  let query = supabase.from('transactions').select('*').order('date', { ascending: false });
+  const userId = await getUserId();
+  let query = supabase.from('transactions').select('*').eq('user_id', userId).order('date', { ascending: false });
   
   if (filters.type) query = query.eq('type', filters.type);
   if (filters.month) query = query.gte('date', `${filters.month}-01`).lte('date', `${filters.month}-31`);
@@ -31,9 +48,11 @@ export const getTransactions = async (filters = {}) => {
 };
 
 export const addTransaction = async (tx) => {
+  const userId = await getUserId();
   const { data, error } = await supabase
     .from('transactions')
     .insert([{
+      user_id: userId, // CRITICAL FIX
       type: tx.type,
       source: tx.source || null,
       category: tx.category || null,
@@ -63,17 +82,19 @@ export const deleteTransaction = async (id) => {
   if (error) throw error;
 };
 
-// ── Goals ─
+// ── Goals ──
 export const getGoals = async () => {
-  const { data, error } = await supabase.from('goals').select('*').order('created_at', { ascending: true });
+  const userId = await getUserId();
+  const { data, error } = await supabase.from('goals').select('*').eq('user_id', userId).order('created_at', { ascending: true });
   if (error) throw error;
   return data || [];
 };
 
 export const addGoal = async (goal) => {
+  const userId = await getUserId();
   const { data, error } = await supabase
     .from('goals')
-    .insert([{ name: goal.name, target: goal.target, current: 0, deadline: goal.deadline || null }])
+    .insert([{ user_id: userId, name: goal.name, target: goal.target, current: 0, deadline: goal.deadline || null }])
     .select()
     .single();
   if (error) throw error;
@@ -92,13 +113,15 @@ export const deleteGoal = async (id) => {
 
 // ── Categories (Expenses) ──
 export const getCategories = async () => {
-  const { data, error } = await supabase.from('categories').select('*').order('name');
+  const userId = await getUserId();
+  const { data, error } = await supabase.from('categories').select('*').eq('user_id', userId).order('name');
   if (error) throw error;
   return data || [];
 };
 
 export const addCategory = async (name) => {
-  const { data, error } = await supabase.from('categories').insert([{ name }]).select().single();
+  const userId = await getUserId();
+  const { data, error } = await supabase.from('categories').insert([{ user_id: userId, name, baseline: 0 }]).select().single();
   if (error) throw error;
   return data;
 };
@@ -110,13 +133,15 @@ export const deleteCategory = async (id) => {
 
 // ── People (Family Support) ──
 export const getPeople = async () => {
-  const { data, error } = await supabase.from('people').select('*').order('name');
+  const userId = await getUserId();
+  const { data, error } = await supabase.from('people').select('*').eq('user_id', userId).order('name');
   if (error) throw error;
   return data || [];
 };
 
 export const addPerson = async (name, budget = 0) => {
-  const { data, error } = await supabase.from('people').insert([{ name, budget }]).select().single();
+  const userId = await getUserId();
+  const { data, error } = await supabase.from('people').insert([{ user_id: userId, name, budget }]).select().single();
   if (error) throw error;
   return data;
 };

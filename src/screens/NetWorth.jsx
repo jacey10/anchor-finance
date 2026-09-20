@@ -8,7 +8,7 @@ export default function NetWorth() {
   const [data, setData] = useState({ total: 0, ngn: 0, usd: 0, usdHoldings: 0 });
   const [isEditingUSD, setIsEditingUSD] = useState(false);
   const [draftUSD, setDraftUSD] = useState('');
-  const [exchangeRate, setExchangeRate] = useState(1400);
+  const [exchangeRate, setExchangeRate] = useState(null);
 
   useEffect(() => {
     const calc = async () => {
@@ -75,7 +75,10 @@ export default function NetWorth() {
             ) : (
               <span onClick={() => setIsEditingUSD(true)} style={{ cursor: 'pointer', width: '100%' }}>
                 {formatUSD(data.usdHoldings)} 
-                <span style={{ color: 'var(--text-muted)', fontSize: 14, marginLeft: 8 }}>≈ {formatNaira(data.usdHoldings * exchangeRate)}</span>
+                
+                <span style={{ color: 'var(--text-muted)', fontSize: 14, marginLeft: 8 }}>
+                  ≈ {exchangeRate === null ? '...' : formatNaira(data.usdHoldings * exchangeRate)}
+                </span>
               </span>
             )}
           </div>

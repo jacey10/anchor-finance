@@ -3,7 +3,7 @@ import { getSetting, updateSetting, getTransactions } from '../lib/storage';
 import { formatNaira } from '../lib/format';
 
 export default function Settings() {
-  const [exchangeRate, setExchangeRate] = useState(1400);
+  const [exchangeRate, setExchangeRate] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
   const [draftRate, setDraftRate] = useState('');
 
@@ -66,14 +66,20 @@ export default function Settings() {
             <div className="list-row-meta">
               {isEditing ? (
                 <form onSubmit={handleUpdateRate} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                  
+                  {/* If it's an input field */}
                   <input 
                     type="number" 
-                    value={draftRate} 
+                    value={draftRate === null ? '' : draftRate} 
                     onChange={(e) => setDraftRate(e.target.value)} 
                     className="form-input" 
                     style={{ width: 100, padding: 6 }}
                     autoFocus
                   />
+
+                  {/* If it's just text displayed on the screen */}
+                  {exchangeRate === null ? '...' : exchangeRate}
+
                   <button type="submit" className="btn btn-primary" style={{ padding: '6px 12px', fontSize: 12 }}>Save</button>
                   <button type="button" className="btn btn-ghost" onClick={() => { setIsEditing(false); setDraftRate(String(exchangeRate)); }} style={{ padding: '6px 12px', fontSize: 12 }}>Cancel</button>
                 </form>
