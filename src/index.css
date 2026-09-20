@@ -1488,6 +1488,13 @@ input, select { font-family: inherit; }
     background-size: cover;
     background-position: center;
   }
+
+  @media (max-width: 767px) {
+  .footer-bottom {
+    align-items: center;
+    text-align: center;
+  }
+}
   
   .auth-visuals {
     display: none; /* We hide the img tag because we use CSS background instead */
