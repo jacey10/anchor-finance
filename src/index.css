@@ -1346,18 +1346,19 @@ input, select { font-family: inherit; }
 
 .auth-main-title {
   font-family: var(--font-serif);
-  font-size: 18px;
+  font-size: 25px;
   font-weight: 300;
   background: linear-gradient(90deg, #00B4DB, #74ca98);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
-  margin: 0 0 8px 0;
+  margin: 5px 0 3px 0;
+  text-align: center;
 }
 
 .auth-sub-title {
   font-family: var(--font-serif); /* Uses Fraunces */
-  font-size: 24px;
+  font-size: 17px;
   font-weight: 400;
   font-style: italic;
   text-align: center;
