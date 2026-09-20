@@ -1348,7 +1348,10 @@ input, select { font-family: inherit; }
   font-family: var(--font-serif);
   font-size: 18px;
   font-weight: 300;
-  color: #111827;
+  background: linear-gradient(90deg, #00B4DB, #74ca98);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
   margin: 0 0 8px 0;
 }
 
@@ -1357,7 +1360,8 @@ input, select { font-family: inherit; }
   font-size: 24px;
   font-weight: 400;
   font-style: italic;
-  color: #4B5563;
+  text-align: center;
+  color: hsl(215, 15%, 45%);;
   margin: 0;
 }
 
