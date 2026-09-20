@@ -92,7 +92,6 @@ input, select { font-family: inherit; }
 .sidebar-footer {
   margin-top: auto;
   padding: 16px;
-  border-top: 1px solid var(--border-card);
 }
 
 .avatar-btn {
