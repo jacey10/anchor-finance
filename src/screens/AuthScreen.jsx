@@ -70,8 +70,8 @@ export default function AuthScreen({ defaultMode = 'signin' }) {
       <div className="auth-form-container">
         <div className="auth-form-wrapper">
           <div className="auth-header">
-            <h1 className="auth-main-title">Welcome to Anchor</h1>
-            <h2 className="auth-sub-title">Anchor Your Financial Future</h2>
+            <h1 className="auth-main-title">Welcome to Anchor Vault</h1>
+            <h2 className="auth-sub-title">Make sense of your money.</h2>
           </div>
 
           <form onSubmit={handleAuth} className="auth-form">

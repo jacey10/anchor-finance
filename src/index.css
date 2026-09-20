@@ -1521,5 +1521,39 @@ input, select { font-family: inherit; }
   .auth-sub-title { font-size: 28px; }
 }
 
+@media (min-width: 768px) {
+  .auth-split-screen {
+    gap: 1rem;
+    background: #ffffff;
+  }
+
+  .auth-visuals {
+    display: block;
+    overflow: hidden;
+  }
+
+  .auth-form-container {
+    background: #ffffff;
+    padding: 36px 24px;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .auth-form-wrapper {
+    background: none;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    border: none;
+    border-radius: 0;
+    padding: 0;
+    box-shadow: none;
+    width: 100%;
+    max-width: 400px;
+  }
+
+  .auth-main-title { font-size: 32px; font-weight: 500;}
+  .auth-sub-title { font-size: 17px; }
+}
+
 
 
