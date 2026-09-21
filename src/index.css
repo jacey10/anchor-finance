@@ -937,6 +937,7 @@ input, select { font-family: inherit; }
   padding: 16px 20px 20px;
   border-top: 1px solid var(--border-subtle);
   background: rgba(15, 27, 45, 0.97);
+  margin-top: 0.875rem;
 }
 
 .mobile-menu .nav-link {
