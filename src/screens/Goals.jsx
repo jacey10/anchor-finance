@@ -65,13 +65,16 @@ export default function Goals() {
     if (!amount || amount <= 0) return;
 
     // 1. Log as an Expense (subtracts from Net Worth)
+    // FIX: Added goal_id so this transaction can be traced back to (and
+    // removed with) its goal if the goal is ever deleted.
     await addTransaction({
       type: 'expense',
       category: 'Goal Payment',
       amount: amount,
       date: payForm.date,
       note: payForm.note || `Paid for ${payingGoal.name}`,
-      impulse: false
+      impulse: false,
+      goal_id: payingGoal.id
     });
 
     // 2. Update Goal Progress (ADD the amount, reset to 0 if fully paid)

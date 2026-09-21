@@ -1653,4 +1653,48 @@ input, select { font-family: inherit; }
 }
 
 
+/* ==========================================================================
+   Support Type UI (Chips & Badges)
+========================================================================== */
 
+/* The small badge shown in the transaction list */
+.support-type-badge {
+  display: inline-block;
+  font-size: 11px;
+  color: var(--accent-gold);
+  margin-top: 4px;
+}
+
+/* The container for the horizontal chips in the form */
+.support-type-chips {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+
+/* Individual chip button */
+.chip {
+  background: var(--bg-main);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-muted);
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: var(--font-sans);
+}
+
+.chip:hover {
+  border-color: var(--text-muted);
+  color: var(--text-primary);
+}
+
+/* Active/Selected chip state */
+.chip-active {
+  background: rgba(184, 147, 95, 0.15);
+  border-color: var(--accent-gold);
+  color: var(--accent-gold);
+  font-weight: 600;
+}

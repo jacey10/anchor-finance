@@ -78,6 +78,39 @@ export const updateTransaction = async (id, updates) => {
 };
 
 export const deleteTransaction = async (id) => {
+  // FIX: If this transaction is a Goal Payment (has a goal_id), we need to
+  // reverse its effect on that goal's progress before deleting it. Otherwise
+  // the goal's progress bar stays overstated after the payment is gone.
+  const { data: tx, error: fetchError } = await supabase
+    .from('transactions')
+    .select('goal_id, amount')
+    .eq('id', id)
+    .single();
+  if (fetchError) throw fetchError;
+
+  if (tx && tx.goal_id) {
+    const { data: goal, error: goalFetchError } = await supabase
+      .from('goals')
+      .select('current')
+      .eq('id', tx.goal_id)
+      .single();
+
+    // PGRST116 = goal already deleted separately; nothing to reverse in that case.
+    if (goalFetchError && goalFetchError.code !== 'PGRST116') throw goalFetchError;
+
+    if (goal) {
+      // Don't let progress go below 0 (e.g. if current was reset to 0 on a
+      // fully-paid goal and an older partial payment is deleted afterward).
+      const newCurrent = Math.max(0, goal.current - tx.amount);
+
+      const { error: goalUpdateError } = await supabase
+        .from('goals')
+        .update({ current: newCurrent })
+        .eq('id', tx.goal_id);
+      if (goalUpdateError) throw goalUpdateError;
+    }
+  }
+
   const { error } = await supabase.from('transactions').delete().eq('id', id);
   if (error) throw error;
 };
@@ -107,6 +140,12 @@ export const updateGoal = async (id, updates) => {
 };
 
 export const deleteGoal = async (id) => {
+  // FIX: Delete this goal's linked "Goal Payment" transactions first, so
+  // deleting a goal also undoes the money that was paid toward it (net
+  // worth returns to what it was before any payment was made).
+  const { error: txError } = await supabase.from('transactions').delete().eq('goal_id', id);
+  if (txError) throw txError;
+
   const { error } = await supabase.from('goals').delete().eq('id', id);
   if (error) throw error;
 };

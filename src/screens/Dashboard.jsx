@@ -1,6 +1,23 @@
 import React, { useState, useEffect } from 'react';
-import { LineChart, Line, ResponsiveContainer, XAxis, YAxis, Tooltip, PieChart, Pie, Cell } from 'recharts';
-import { getTransactions, getGoals, getSetting, updateGoal, addTransaction, deleteGoal } from '../lib/storage';
+import { 
+  LineChart, 
+  Line, 
+  ResponsiveContainer, 
+  XAxis, 
+  YAxis, 
+  Tooltip, 
+  PieChart, 
+  Pie, 
+  Cell 
+} from 'recharts';
+import { 
+  getTransactions, 
+  getGoals, 
+  getSetting, 
+  updateGoal, 
+  addTransaction, 
+  deleteGoal 
+} from '../lib/storage';
 import { calculateNetWorth, calculateMonthlySummary } from '../lib/calculations';
 import { formatNaira } from '../lib/format';
 import GoalRow from '../components/GoalRow';
@@ -8,68 +25,52 @@ import Modal from '../components/Modal';
 import ConfirmDialog from '../components/ConfirmDialog';
 
 // Muted colors that match your dark theme
-const COLORS = ['#B8935F', '#8FA98A', '#5A7F9F', '#B87C6B', '#9F8FA9', '#7FA9BF', '#D4A373', '#A98FA9'];
+const COLORS = [
+  '#B8935F', 
+  '#8FA98A', 
+  '#5A7F9F', 
+  '#B87C6B', 
+  '#9F8FA9', 
+  '#7FA9BF', 
+  '#D4A373', 
+  '#A98FA9'
+];
 
 export default function Dashboard() {
-  const [data, setData] = useState({ 
-    netWorth: 0, 
-    income: 0, 
-    expenses: 0, 
-    goals: [], 
-    expenseBreakdown: [] 
+  const [data, setData] = useState({
+    netWorth: 0,
+    income: 0,
+    expenses: 0,
+    goals: [],
+    expenseBreakdown: []
   });
+  
   const [loading, setLoading] = useState(true);
   
   // Month picker state (defaults to current month)
   const [currentMonth, setCurrentMonth] = useState(new Date().toISOString().slice(0, 7));
-  
   const [payingGoal, setPayingGoal] = useState(null);
   const [editingGoal, setEditingGoal] = useState(null);
   const [deletingGoalId, setDeletingGoalId] = useState(null);
-  
-  const [payForm, setPayForm] = useState({ amount: '', date: new Date().toISOString().slice(0, 10), note: '' });
-  const [editForm, setEditForm] = useState({ name: '', target: '', deadline: '' });
+  const [payForm, setPayForm] = useState({ 
+    amount: '', 
+    date: new Date().toISOString().slice(0, 10), 
+    note: '' 
+  });
+  const [editForm, setEditForm] = useState({ 
+    name: '', 
+    target: '', 
+    deadline: '' 
+  });
 
-  /*useEffect(() => {
-    const loadData = async () => {
-      const [transactions, goals, startingBalance, exchangeRate] = await Promise.all([
-        getTransactions(), getGoals(), getSetting('starting_balance'), getSetting('exchange_rate'),
-      ]);
-
-      // Filter transactions for selected month
-      const monthlyTransactions = transactions.filter(tx => tx.date.startsWith(currentMonth));
-      
-      const summary = calculateMonthlySummary(monthlyTransactions, currentMonth);
-      const netWorthData = calculateNetWorth(transactions, startingBalance, exchangeRate);
-
-      // Calculate Pie Chart Data (ONLY for selected month)
-      const breakdownMap = {};
-      monthlyTransactions.filter(tx => tx.type === 'expense').forEach(tx => {
-        const cat = tx.category || 'Other';
-        breakdownMap[cat] = (breakdownMap[cat] || 0) + tx.amount;
-      });
-      const expenseBreakdown = Object.entries(breakdownMap).map(([name, value]) => ({ name, value }));
-
-      setData({
-        netWorth: netWorthData.total,
-        income: summary.income,
-        expenses: summary.totalOutflow,
-        goals,
-        expenseBreakdown,
-        trend: [
-          { month: 'Apr', value: 420000 }, 
-          { month: 'Sep', value: netWorthData.total },
-        ],
-      });
-      setLoading(false);
-    };
-    loadData();
-  }, [currentMonth]);*/ // Re-run when month changes
-
-    useEffect(() => {
+  useEffect(() => {
     const loadData = async () => {
       const [transactions, goals, startingBalance, exchangeRate, usdHoldings] = await Promise.all([
-        getTransactions(), getGoals(), getSetting('starting_balance'), getSetting('exchange_rate'), getSetting('usd_holdings'),
+        getTransactions(), 
+        getGoals(), 
+        getSetting('starting_balance'), 
+        getSetting('exchange_rate'), 
+        getSetting('usd_holdings'),
       ]);
 
       // Calculate Previous Month Key
@@ -85,12 +86,24 @@ export default function Dashboard() {
       const netWorthData = calculateNetWorth(transactions, startingBalance, exchangeRate, usdHoldings || 0);
 
       // Calculate Monthly Changes
-      const currentIncome = currentMonthTxs.filter(tx => tx.type === 'income').reduce((sum, tx) => sum + tx.amount, 0);
-      const currentExpense = currentMonthTxs.filter(tx => tx.type !== 'income').reduce((sum, tx) => sum + tx.amount, 0);
+      const currentIncome = currentMonthTxs
+        .filter(tx => tx.type === 'income')
+        .reduce((sum, tx) => sum + tx.amount, 0);
+        
+      const currentExpense = currentMonthTxs
+        .filter(tx => tx.type !== 'income')
+        .reduce((sum, tx) => sum + tx.amount, 0);
+        
       const currentDelta = currentIncome - currentExpense;
 
-      const prevIncome = prevMonthTxs.filter(tx => tx.type === 'income').reduce((sum, tx) => sum + tx.amount, 0);
-      const prevExpense = prevMonthTxs.filter(tx => tx.type !== 'income').reduce((sum, tx) => sum + tx.amount, 0);
+      const prevIncome = prevMonthTxs
+        .filter(tx => tx.type === 'income')
+        .reduce((sum, tx) => sum + tx.amount, 0);
+        
+      const prevExpense = prevMonthTxs
+        .filter(tx => tx.type !== 'income')
+        .reduce((sum, tx) => sum + tx.amount, 0);
+        
       const prevDelta = prevIncome - prevExpense;
 
       let percentageChange = 0;
@@ -98,13 +111,21 @@ export default function Dashboard() {
         percentageChange = ((currentDelta - prevDelta) / Math.abs(prevDelta)) * 100;
       }
 
-      // Pie Chart Data
+      // FIX: Pie Chart Data (Now includes both 'expense' and 'family_support')
       const breakdownMap = {};
-      currentMonthTxs.filter(tx => tx.type === 'expense').forEach(tx => {
-        const cat = tx.category || 'Other';
-        breakdownMap[cat] = (breakdownMap[cat] || 0) + tx.amount;
-      });
-      const expenseBreakdown = Object.entries(breakdownMap).map(([name, value]) => ({ name, value }));
+
+      currentMonthTxs
+        .filter(tx => tx.type === 'expense' || tx.type === 'family_support')
+        .forEach(tx => {
+          // Use category for expenses, person for family support, fallback to 'Other'
+          const cat = tx.category || tx.person || 'Other';
+          breakdownMap[cat] = (breakdownMap[cat] || 0) + tx.amount;
+        });
+
+      const expenseBreakdown = Object.entries(breakdownMap).map(([name, value]) => ({
+        name,
+        value
+      }));
 
       setData({
         netWorth: netWorthData.total,
@@ -119,32 +140,52 @@ export default function Dashboard() {
           { month: 'Sep', value: netWorthData.total },
         ],
       });
+      
       setLoading(false);
     };
+    
     loadData();
   }, [currentMonth]); // Re-run when month changes
 
-    const refreshData = async () => {
+  const refreshData = async () => {
     const goals = await getGoals();
     const transactions = await getTransactions();
-    const [startingBalance, exchangeRate, usdHoldings] = await Promise.all([getSetting('starting_balance'), getSetting('exchange_rate'), getSetting('usd_holdings')]);
+    
+    const [startingBalance, exchangeRate, usdHoldings] = await Promise.all([
+      getSetting('starting_balance'), 
+      getSetting('exchange_rate'), 
+      getSetting('usd_holdings')
+    ]);
+
     const netWorthData = calculateNetWorth(transactions, startingBalance, exchangeRate, usdHoldings || 0);
     
     const prevMonthDate = new Date(currentMonth + '-01');
     prevMonthDate.setMonth(prevMonthDate.getMonth() - 1);
     const prevMonthKey = prevMonthDate.toISOString().slice(0, 7);
-
+    
     const currentMonthTxs = transactions.filter(tx => tx.date.startsWith(currentMonth));
     const prevMonthTxs = transactions.filter(tx => tx.date.startsWith(prevMonthKey));
     
     const summary = calculateMonthlySummary(currentMonthTxs, currentMonth);
     
-    const currentIncome = currentMonthTxs.filter(tx => tx.type === 'income').reduce((sum, tx) => sum + tx.amount, 0);
-    const currentExpense = currentMonthTxs.filter(tx => tx.type !== 'income').reduce((sum, tx) => sum + tx.amount, 0);
+    const currentIncome = currentMonthTxs
+      .filter(tx => tx.type === 'income')
+      .reduce((sum, tx) => sum + tx.amount, 0);
+      
+    const currentExpense = currentMonthTxs
+      .filter(tx => tx.type !== 'income')
+      .reduce((sum, tx) => sum + tx.amount, 0);
+      
     const currentDelta = currentIncome - currentExpense;
 
-    const prevIncome = prevMonthTxs.filter(tx => tx.type === 'income').reduce((sum, tx) => sum + tx.amount, 0);
-    const prevExpense = prevMonthTxs.filter(tx => tx.type !== 'income').reduce((sum, tx) => sum + tx.amount, 0);
+    const prevIncome = prevMonthTxs
+      .filter(tx => tx.type === 'income')
+      .reduce((sum, tx) => sum + tx.amount, 0);
+      
+    const prevExpense = prevMonthTxs
+      .filter(tx => tx.type !== 'income')
+      .reduce((sum, tx) => sum + tx.amount, 0);
+      
     const prevDelta = prevIncome - prevExpense;
 
     let percentageChange = 0;
@@ -152,12 +193,21 @@ export default function Dashboard() {
       percentageChange = ((currentDelta - prevDelta) / Math.abs(prevDelta)) * 100;
     }
 
+    // FIX: Pie Chart Data (Now includes both 'expense' and 'family_support')
     const breakdownMap = {};
-    currentMonthTxs.filter(tx => tx.type === 'expense').forEach(tx => {
-      const cat = tx.category || 'Other';
-      breakdownMap[cat] = (breakdownMap[cat] || 0) + tx.amount;
-    });
-    const expenseBreakdown = Object.entries(breakdownMap).map(([name, value]) => ({ name, value }));
+
+    currentMonthTxs
+      .filter(tx => tx.type === 'expense' || tx.type === 'family_support')
+      .forEach(tx => {
+        // Use category for expenses, person for family support, fallback to 'Other'
+        const cat = tx.category || tx.person || 'Other';
+        breakdownMap[cat] = (breakdownMap[cat] || 0) + tx.amount;
+      });
+
+    const expenseBreakdown = Object.entries(breakdownMap).map(([name, value]) => ({
+      name,
+      value
+    }));
 
     setData(prev => ({ 
       ...prev, 
@@ -173,22 +223,47 @@ export default function Dashboard() {
 
   const handlePaySubmit = async (e) => {
     e.preventDefault();
+    
     const amount = Number(payForm.amount);
     if (!amount || amount <= 0 || !payingGoal) return;
-
-    await addTransaction({ type: 'expense', category: 'Goal Payment', amount, date: payForm.date, note: payForm.note || `Paid for ${payingGoal.name}`, impulse: false });
+    
+    // FIX: Added goal_id so this transaction can be traced back to (and
+    // removed with) its goal if the goal is ever deleted, and so deleting
+    // this transaction later can correctly reverse the goal's progress.
+    await addTransaction({ 
+      type: 'expense', 
+      category: 'Goal Payment', 
+      amount, 
+      date: payForm.date, 
+      note: payForm.note || `Paid for ${payingGoal.name}`, 
+      impulse: false,
+      goal_id: payingGoal.id
+    });
+    
     let newCurrent = payingGoal.current + amount;
     if (newCurrent >= payingGoal.target) newCurrent = 0;
+    
     await updateGoal(payingGoal.id, { current: newCurrent });
     
     await refreshData();
+    
     setPayingGoal(null);
-    setPayForm({ amount: '', date: new Date().toISOString().slice(0, 10), note: '' });
+    setPayForm({ 
+      amount: '', 
+      date: new Date().toISOString().slice(0, 10), 
+      note: '' 
+    });
   };
 
   const handleEditSubmit = async (e) => {
     e.preventDefault();
-    await updateGoal(editingGoal.id, { name: editForm.name, target: Number(editForm.target), deadline: editForm.deadline || null });
+    
+    await updateGoal(editingGoal.id, { 
+      name: editForm.name, 
+      target: Number(editForm.target), 
+      deadline: editForm.deadline || null 
+    });
+    
     await refreshData();
     setEditingGoal(null);
   };
@@ -214,7 +289,10 @@ export default function Dashboard() {
     setCurrentMonth(date.toISOString().slice(0, 7));
   };
 
-  const monthName = new Date(currentMonth + '-01').toLocaleString('default', { month: 'long', year: 'numeric' });
+  const monthName = new Date(currentMonth + '-01').toLocaleString('default', { 
+    month: 'long', 
+    year: 'numeric' 
+  });
 
   if (loading) return <div className="loading">Loading your finances...</div>;
 
@@ -261,6 +339,7 @@ export default function Dashboard() {
       {data.expenses > 0 && (
         <section className="section">
           <h2 className="section-title">Where your money went</h2>
+          
           <div className="chart-wrap" style={{ padding: '16px 0' }}>
             <ResponsiveContainer width="100%" height={250}>
               <PieChart>
@@ -273,11 +352,19 @@ export default function Dashboard() {
                   dataKey="value"
                 >
                   {data.expenseBreakdown.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    <Cell 
+                      key={`cell-${index}`} 
+                      fill={COLORS[index % COLORS.length]} 
+                    />
                   ))}
                 </Pie>
                 <Tooltip 
-                  contentStyle={{ background: '#16283C', border: '1px solid #2A3B4D', borderRadius: 6, color: '#EDE9E1' }}
+                  contentStyle={{ 
+                    background: '#16283C', 
+                    border: '1px solid #2A3B4D', 
+                    borderRadius: 6, 
+                    color: '#EDE9E1' 
+                  }}
                   formatter={(value, name) => [formatNaira(value), name]}
                 />
               </PieChart>
@@ -286,11 +373,17 @@ export default function Dashboard() {
             <div className="pie-legend">
               {data.expenseBreakdown.map((entry, index) => {
                 const percentage = Math.round((entry.value / data.expenses) * 100);
+                
                 return (
                   <div key={entry.name} className="legend-item">
-                    <span className="legend-dot" style={{ background: COLORS[index % COLORS.length] }} />
+                    <span 
+                      className="legend-dot" 
+                      style={{ background: COLORS[index % COLORS.length] }} 
+                    />
                     <span className="legend-text">{entry.name}</span>
-                    <span className="legend-value">{formatNaira(entry.value)} ({percentage}%)</span>
+                    <span className="legend-value">
+                      {formatNaira(entry.value)} ({percentage}%)
+                    </span>
                   </div>
                 );
               })}
@@ -310,7 +403,11 @@ export default function Dashboard() {
               onDelete={(id) => setDeletingGoalId(id)} 
               onPay={(goal) => {
                 const remaining = goal.target - goal.current;
-                setPayForm({ amount: String(remaining > 0 ? remaining : goal.target), date: new Date().toISOString().slice(0, 10), note: '' });
+                setPayForm({ 
+                  amount: String(remaining > 0 ? remaining : goal.target), 
+                  date: new Date().toISOString().slice(0, 10), 
+                  note: '' 
+                });
                 setPayingGoal(goal);
               }} 
             />
@@ -323,10 +420,30 @@ export default function Dashboard() {
         <div className="chart-wrap">
           <ResponsiveContainer width="100%" height={180}>
             <LineChart data={data.trend}>
-              <XAxis dataKey="month" stroke="#5A6B7A" tick={{ fill: '#8A98A5', fontSize: 12 }} axisLine={{ stroke: '#2A3B4D' }} tickLine={false} />
+              <XAxis 
+                dataKey="month" 
+                stroke="#5A6B7A" 
+                tick={{ fill: '#8A98A5', fontSize: 12 }} 
+                axisLine={{ stroke: '#2A3B4D' }} 
+                tickLine={false} 
+              />
               <YAxis hide />
-              <Tooltip contentStyle={{ background: '#16283C', border: '1px solid #2A3B4D', borderRadius: 4, color: '#EDE9E1' }} formatter={(value) => [formatNaira(value), 'Net worth']} />
-              <Line type="monotone" dataKey="value" stroke="#B8935F" strokeWidth={2} dot={{ fill: '#B8935F', r: 3 }} />
+              <Tooltip 
+                contentStyle={{ 
+                  background: '#16283C', 
+                  border: '1px solid #2A3B4D', 
+                  borderRadius: 4, 
+                  color: '#EDE9E1' 
+                }} 
+                formatter={(value) => [formatNaira(value), 'Net worth']} 
+              />
+              <Line 
+                type="monotone" 
+                dataKey="value" 
+                stroke="#B8935F" 
+                strokeWidth={2} 
+                dot={{ fill: '#B8935F', r: 3 }} 
+              />
             </LineChart>
           </ResponsiveContainer>
         </div>
@@ -335,29 +452,102 @@ export default function Dashboard() {
       {/* Modals */}
       <Modal isOpen={!!payingGoal} onClose={() => setPayingGoal(null)} title={`Pay from ${payingGoal?.name}`}>
         <form onSubmit={handlePaySubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-          <label className="form-label">Amount <input type="number" value={payForm.amount} onChange={e => setPayForm({...payForm, amount: e.target.value})} className="form-input" required /></label>
-          <label className="form-label">Date <input type="date" value={payForm.date} onChange={e => setPayForm({...payForm, date: e.target.value})} className="form-input" required /></label>
-          <label className="form-label">Note <input type="text" value={payForm.note} onChange={e => setPayForm({...payForm, note: e.target.value})} className="form-input" /></label>
+          <label className="form-label">
+            Amount 
+            <input 
+              type="number" 
+              value={payForm.amount} 
+              onChange={e => setPayForm({...payForm, amount: e.target.value})} 
+              className="form-input" 
+              required 
+            />
+          </label>
+          <label className="form-label">
+            Date 
+            <input 
+              type="date" 
+              value={payForm.date} 
+              onChange={e => setPayForm({...payForm, date: e.target.value})} 
+              className="form-input" 
+              required 
+            />
+          </label>
+          <label className="form-label">
+            Note 
+            <input 
+              type="text" 
+              value={payForm.note} 
+              onChange={e => setPayForm({...payForm, note: e.target.value})} 
+              className="form-input" 
+            />
+          </label>
           <div className="form-actions">
-            <button type="button" className="btn btn-ghost" onClick={() => setPayingGoal(null)}>Cancel</button>
-            <button type="submit" className="btn btn-primary">Confirm</button>
+            <button 
+              type="button" 
+              className="btn btn-ghost" 
+              onClick={() => setPayingGoal(null)}
+            >
+              Cancel
+            </button>
+            <button type="submit" className="btn btn-primary">
+              Confirm
+            </button>
           </div>
         </form>
       </Modal>
 
       <Modal isOpen={!!editingGoal} onClose={() => setEditingGoal(null)} title="Edit Goal">
         <form onSubmit={handleEditSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-          <label className="form-label">Name <input type="text" value={editForm.name} onChange={e => setEditForm({...editForm, name: e.target.value})} className="form-input" required /></label>
-          <label className="form-label">Target <input type="number" value={editForm.target} onChange={e => setEditForm({...editForm, target: e.target.value})} className="form-input" required /></label>
-          <label className="form-label">Deadline <input type="date" value={editForm.deadline} onChange={e => setEditForm({...editForm, deadline: e.target.value})} className="form-input" /></label>
+          <label className="form-label">
+            Name 
+            <input 
+              type="text" 
+              value={editForm.name} 
+              onChange={e => setEditForm({...editForm, name: e.target.value})} 
+              className="form-input" 
+              required 
+            />
+          </label>
+          <label className="form-label">
+            Target 
+            <input 
+              type="number" 
+              value={editForm.target} 
+              onChange={e => setEditForm({...editForm, target: e.target.value})} 
+              className="form-input" 
+              required 
+            />
+          </label>
+          <label className="form-label">
+            Deadline 
+            <input 
+              type="date" 
+              value={editForm.deadline} 
+              onChange={e => setEditForm({...editForm, deadline: e.target.value})} 
+              className="form-input" 
+            />
+          </label>
           <div className="form-actions">
-            <button type="button" className="btn btn-ghost" onClick={() => setEditingGoal(null)}>Cancel</button>
-            <button type="submit" className="btn btn-primary">Update</button>
+            <button 
+              type="button" 
+              className="btn btn-ghost" 
+              onClick={() => setEditingGoal(null)}
+            >
+              Cancel
+            </button>
+            <button type="submit" className="btn btn-primary">
+              Update
+            </button>
           </div>
         </form>
       </Modal>
 
-      <ConfirmDialog isOpen={!!deletingGoalId} onClose={() => setDeletingGoalId(null)} onConfirm={handleDeleteConfirm} message="Delete this goal?" />
+      <ConfirmDialog 
+        isOpen={!!deletingGoalId} 
+        onClose={() => setDeletingGoalId(null)} 
+        onConfirm={handleDeleteConfirm} 
+        message="Delete this goal?" 
+      />
     </div>
   );
 }

@@ -8,7 +8,6 @@ import OverageWarning from '../components/OverageWarning';
 export default function Family() {
   const [tab, setTab] = useState('budget');
   const [people, setPeople] = useState([]);
-  const [familyTypes, setFamilyTypes] = useState([]); // NEW: State for support types
   const [transactions, setTransactions] = useState([]);
   const [warning, setWarning] = useState(null);
   const [pendingTx, setPendingTx] = useState(null);
@@ -17,19 +16,14 @@ export default function Family() {
   useEffect(() => {
     const loadData = async () => {
       setLoading(true); // Start loading
-      
-      const [ppl, txs, { data: typesData }] = await Promise.all([
-        getPeople(),
-        getTransactions({ type: 'family_support' }),
-        supabase.from('family_types').select('*').order('name') // NEW: Fetch types
+      const [ppl, txs] = await Promise.all([
+        getPeople(), 
+        getTransactions({ type: 'family_support' })
       ]);
-      
       setPeople(ppl);
       setTransactions(txs);
-      setFamilyTypes(typesData || []); // NEW: Set types
       setLoading(false); // Stop loading
     };
-    
     loadData();
   }, []);
 
@@ -64,7 +58,7 @@ export default function Family() {
     setPeople(updatedPeople);
   };
 
-  const handleUpdateBudget = async (name, newBudget) => {
+    const handleUpdateBudget = async (name, newBudget) => {
     const { data: { user } } = await supabase.auth.getUser();
     
     const { error } = await supabase
@@ -72,12 +66,12 @@ export default function Family() {
       .update({ budget: newBudget })
       .eq('name', name)
       .eq('user_id', user.id);
-    
+
     if (error) {
       alert('Error updating budget: ' + error.message);
       return;
     }
-    
+
     // Refresh the list
     const updatedPeople = await getPeople();
     setPeople(updatedPeople);
@@ -91,12 +85,11 @@ export default function Family() {
 
   const handleBeforeAdd = (tx) => {
     const person = people.find(p => p.name === tx.category);
-    
     if (person) {
       const alreadyGiven = transactions
         .filter(t => t.person === person.name && t.date.startsWith(new Date().toISOString().slice(0, 7)))
         .reduce((sum, t) => sum + t.amount, 0);
-      
+        
       if (alreadyGiven + tx.amount > person.budget) {
         setPendingTx(tx);
         setWarning({ 
@@ -109,13 +102,12 @@ export default function Family() {
         return false;
       }
     }
-    
     return true;
   };
 
-  const handleDeleteMember = async (name) => {
+    const handleDeleteMember = async (name) => {
     if (!window.confirm(`Are you sure you want to remove ${name} from your family support list?`)) return;
-    
+
     const { data: { user } } = await supabase.auth.getUser();
     
     // Delete from Supabase
@@ -124,12 +116,12 @@ export default function Family() {
       .delete()
       .eq('name', name)
       .eq('user_id', user.id);
-    
+
     if (error) {
       alert('Error deleting member: ' + error.message);
       return;
     }
-    
+
     // Refresh the list
     const updatedPeople = await getPeople();
     setPeople(updatedPeople);
@@ -163,12 +155,15 @@ export default function Family() {
     );
   }
 
+    // ... (keep all your existing imports and state)
+
   // 2. Show Empty State (Only if loading is done and no people exist)
   if (people.length === 0) {
     return (
       <div className="screen">
         <h1 className="screen-title">Family Support</h1>
         <p className="screen-sub">What you can give this month, by person.</p>
+        
         <div className="empty-state">
           <div className="empty-icon">👨‍👧</div>
           <h3 className="empty-title">No family members added yet</h3>
@@ -176,10 +171,7 @@ export default function Family() {
             Use this space to track financial support for parents, siblings, or children. 
             If you don't need this feature, you can simply ignore this tab!
           </p>
-          <button 
-            className="btn btn-primary" 
-            onClick={handleAddFirstMember}
-          >
+          <button className="btn btn-primary" onClick={handleAddFirstMember}>
             Add your first member
           </button>
         </div>
@@ -194,29 +186,16 @@ export default function Family() {
         <h1 className="screen-title">Family Support</h1>
         <p className="screen-sub">What you can give this month, by person.</p>
       </div>
-      
+
       <div className="tab-row">
-        <button 
-          className={`tab-button ${tab === 'budget' ? 'active' : ''}`} 
-          onClick={() => setTab('budget')}
-        >
-          Budget
-        </button>
-        <button 
-          className={`tab-button ${tab === 'given' ? 'active' : ''}`} 
-          onClick={() => setTab('given')}
-        >
-          Given
-        </button>
+        <button className={`tab-button ${tab === 'budget' ? 'active' : ''}`} onClick={() => setTab('budget')}>Budget</button>
+        <button className={`tab-button ${tab === 'given' ? 'active' : ''}`} onClick={() => setTab('given')}>Given</button>
       </div>
 
       {tab === 'budget' ? (
         <div>
           <div className="add-member-row">
-            <button 
-              className="btn btn-primary btn-small" 
-              onClick={handleAddFirstMember}
-            >
+            <button className="btn btn-primary btn-small" onClick={handleAddFirstMember}>
               + Add Member
             </button>
           </div>
@@ -225,14 +204,13 @@ export default function Family() {
             onUpdate={handleUpdateBudget}
             total={people.reduce((sum, p) => sum + (p.budget || 0), 0)} 
             totalLabel="Total family support budget"
-            onDelete={handleDeleteMember}
+            onDelete={handleDeleteMember} // <-- ADD THIS
           />
         </div>
       ) : (
         <LogTab 
           transactions={transactions} 
           categories={people.map(p => ({ name: p.name, baseline: p.budget }))} 
-          familyTypes={familyTypes} // NEW: Pass types to LogTab
           type="family_support" 
           onAdd={handleAdd} 
           onDelete={handleDelete}
