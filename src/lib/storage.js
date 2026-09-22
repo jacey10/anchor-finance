@@ -153,7 +153,7 @@ export const updateGoal = async (id, updates) => {
 
 export const deleteGoal = async (id) => {
   // FIX: Removed the cascading delete of transactions.
-  // We want to preserve the financial history of goal transfers.
+  // We want to preserve the financial history of goal payments.
   // Deleting a goal only removes the tracker, not the historical money movement.
   const { error } = await supabase.from('goals').delete().eq('id', id);
   if (error) throw error;

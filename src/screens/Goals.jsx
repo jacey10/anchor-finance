@@ -32,7 +32,13 @@ export default function Goals() {
 
   const loadGoals = async () => {
     const data = await getGoals();
-    setGoals(data);
+    
+    // FIX: Sort goals alphabetically by name (A-Z)
+    const sortedData = [...data].sort((a, b) => {
+      return a.name.localeCompare(b.name);
+    });
+    
+    setGoals(sortedData);
   };
 
   const handleAdd = async (e) => {
@@ -115,13 +121,30 @@ export default function Goals() {
     }
   };
 
+  // FIX: New handlers for marking goals as paid/unpaid
+  const handleMarkAsPaid = async (goal) => {
+    await updateGoal(goal.id, { is_paid: true });
+    await loadGoals();
+  };
+
+  const handleUnmarkAsPaid = async (goal) => {
+    await updateGoal(goal.id, { is_paid: false });
+    await loadGoals();
+  };
+
+  // FIX: Split goals into two sections based on funding status
+  const activeGoals = goals.filter(g => g.current < g.target);
+  const completedGoals = goals.filter(g => g.current >= g.target);
+
   return (
     <div className="screen">
       <h1 className="screen-title">Goals</h1>
       <p className="screen-sub">What you're building toward.</p>
       
+      {/* Section 1: Goals in motion */}
+      <h2 className="section-title">Goals in motion</h2>
       <div className="goals-wrap">
-        {goals.map(g => (
+        {activeGoals.map(g => (
           <GoalRow 
             key={g.id} 
             goal={g} 
@@ -130,12 +153,35 @@ export default function Goals() {
             onPay={openPay} 
           />
         ))}
+        {activeGoals.length === 0 && (
+          <p className="hint-text">No active goals. Add one below!</p>
+        )}
       </div>
+      
+      {/* Section 2: Completed goals */}
+      {completedGoals.length > 0 && (
+        <>
+          <h2 className="section-title" style={{ marginTop: '32px' }}>Completed goals</h2>
+          <div className="goals-wrap">
+            {completedGoals.map(g => (
+              <GoalRow 
+                key={g.id} 
+                goal={g} 
+                onEdit={openEdit} 
+                onDelete={(id) => setDeletingGoalId(id)} 
+                onPay={openPay}
+                onMarkAsPaid={handleMarkAsPaid}
+                onUnmarkAsPaid={handleUnmarkAsPaid}
+              />
+            ))}
+          </div>
+        </>
+      )}
       
       <button 
         onClick={() => setShowAddForm(!showAddForm)} 
         className="btn btn-outline" 
-        style={{ marginTop: 20 }}
+        style={{ marginTop: '20px' }}
       >
         + Add Goal
       </button>
@@ -188,7 +234,7 @@ export default function Goals() {
 
       {/* Edit Modal */}
       <Modal isOpen={!!editingGoal} onClose={() => setEditingGoal(null)} title="Edit Goal">
-        <form onSubmit={handleEditSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <form onSubmit={handleEditSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
           <label className="form-label">
             Name
             <input 
@@ -235,8 +281,8 @@ export default function Goals() {
 
       {/* Pay Modal */}
       <Modal isOpen={!!payingGoal} onClose={() => setPayingGoal(null)} title={`Pay towards ${payingGoal?.name}`}>
-        <form onSubmit={handlePaySubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-          <p style={{ color: 'var(--text-muted)', fontSize: 13, marginBottom: 8 }}>
+        <form onSubmit={handlePaySubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          <p style={{ color: 'var(--text-muted)', fontSize: '13px', marginBottom: '8px' }}>
             This will move money into your goal fund. Your total Net Worth will not change.
           </p>
           <label className="form-label">

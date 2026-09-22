@@ -1,6 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { getCategories, getTransactions, addTransaction, deleteTransaction } from '../lib/storage';
+import { 
+  getCategories, 
+  getTransactions, 
+  addTransaction, 
+  deleteTransaction, 
+  getGoals, 
+  updateGoal 
+} from '../lib/storage';
 import { formatNaira } from '../lib/format';
 import BaselineTab from '../components/BaselineTab';
 import LogTab from '../components/LogTab';
@@ -10,17 +17,23 @@ export default function Expenses() {
   const [categories, setCategories] = useState([]);
   const [transactions, setTransactions] = useState([]);
   
+  // FIX: Add goals state to track which goals have funds available
+  const [goals, setGoals] = useState([]);
+  
   // Date filter state
   const [dateFilter, setDateFilter] = useState({ start: '', end: '' });
 
   useEffect(() => {
     const loadData = async () => {
-      const [cats, txs] = await Promise.all([
+      // FIX: Fetch goals alongside categories and transactions
+      const [cats, txs, g] = await Promise.all([
         getCategories(), 
-        getTransactions({ type: 'expense' })
+        getTransactions({ type: 'expense' }),
+        getGoals()
       ]);
       setCategories(cats);
       setTransactions(txs);
+      setGoals(g);
     };
     loadData();
   }, []);
@@ -78,9 +91,22 @@ export default function Expenses() {
   };
 
   const handleAdd = async (tx) => {
+    // 1. Log the expense transaction
     await addTransaction({ ...tx, type: 'expense' });
-    const newTxs = await getTransactions({ type: 'expense' });
+    
+    // FIX: If this expense was paid from a specific goal, automatically mark that goal as paid
+    if (tx.goal_id) {
+      await updateGoal(tx.goal_id, { is_paid: true });
+    }
+    
+    // 2. Refresh both transactions and goals to update the UI
+    const [newTxs, newGoals] = await Promise.all([
+      getTransactions({ type: 'expense' }),
+      getGoals()
+    ]);
+    
     setTransactions(newTxs);
+    setGoals(newGoals);
   };
 
   const handleDelete = async (id) => {
@@ -126,8 +152,18 @@ export default function Expenses() {
       <p className="screen-sub">Your floor, and what actually happened.</p>
 
       <div className="tab-row">
-        <button className={`tab-button ${tab === 'baseline' ? 'active' : ''}`} onClick={() => setTab('baseline')}>Baseline</button>
-        <button className={`tab-button ${tab === 'log' ? 'active' : ''}`} onClick={() => setTab('log')}>Log</button>
+        <button 
+          className={`tab-button ${tab === 'baseline' ? 'active' : ''}`} 
+          onClick={() => setTab('baseline')}
+        >
+          Baseline
+        </button>
+        <button 
+          className={`tab-button ${tab === 'log' ? 'active' : ''}`} 
+          onClick={() => setTab('log')}
+        >
+          Log
+        </button>
       </div>
 
       {tab === 'baseline' ? (
@@ -141,10 +177,12 @@ export default function Expenses() {
           onDelete={handleDeleteCategory} // <-- ADD THIS
         />
       ) : (
-      
         <div>
           {/* Date Range Filter */}
-          <div className="form-card" style={{ marginBottom: 20, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-end', gap: 12 }}>
+          <div 
+            className="form-card" 
+            style={{ marginBottom: 20, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-end', gap: 12 }}
+          >
             <label className="form-label" style={{ flex: 1, minWidth: 120 }}>
               Date From
               <input 
@@ -172,9 +210,11 @@ export default function Expenses() {
             </button>
           </div>
 
+          {/* FIX: Pass goals down to LogTab so it can render the "Pay from Goal" dropdown */}
           <LogTab 
             transactions={filteredTransactions} 
             categories={categories} 
+            goals={goals}
             type="expense" 
             onAdd={handleAdd} 
             onDelete={handleDelete} 

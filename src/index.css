@@ -1698,3 +1698,10 @@ input, select { font-family: inherit; }
   color: var(--accent-gold);
   font-weight: 600;
 }
+
+/* ==========================================================================
+   Paid Goal Progress Bar
+========================================================================== */
+.goal-bar-fill.is-paid {
+  background: var(--accent-red);
+}

@@ -5,7 +5,8 @@ import TransactionRow from './TransactionRow';
 export default function LogTab({
   transactions,
   categories,
-  familyTypes = [], // NEW: Receive family types
+  familyTypes = [],
+  goals = [],
   type,
   onAdd,
   onDelete,
@@ -14,11 +15,12 @@ export default function LogTab({
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState({
     category: categories[0]?.name || '',
-    support_type: '', // NEW: Track support type
+    support_type: '',
     amount: '',
     date: new Date().toISOString().slice(0, 10),
     note: '',
-    impulse: false
+    impulse: false,
+    goal_id: ''
   });
 
   const byCategory = useMemo(() => {
@@ -37,6 +39,19 @@ export default function LogTab({
     return map;
   }, [transactions, categories]);
 
+  // FIX: Handle goal selection directly and safely
+  const handleGoalChange = (e) => {
+    const goalId = e.target.value;
+    // Use String() to ensure ID matching works whether IDs are numbers or strings
+    const selectedGoal = goals.find(g => String(g.id) === String(goalId));
+    
+    setFormData(prev => ({
+      ...prev,
+      goal_id: goalId,
+      amount: selectedGoal && selectedGoal.current > 0 ? String(selectedGoal.current) : ''
+    }));
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
     
@@ -52,14 +67,16 @@ export default function LogTab({
       ...formData,
       amount: parsed,
       type,
-      support_type: formData.support_type || null // NEW: Include in payload
+      support_type: formData.support_type || null,
+      goal_id: formData.goal_id || null
     });
     
     setFormData({
       ...formData,
       amount: '',
       note: '',
-      support_type: '' // NEW: Reset type
+      support_type: '',
+      goal_id: ''
     });
     
     setShowForm(false);
@@ -122,6 +139,27 @@ export default function LogTab({
             </select>
           </label>
 
+          {/* Pay from Goal Dropdown (Only for expenses) */}
+          {type === 'expense' && (
+            <label className="form-label">
+              Pay from Goal (Optional)
+              <select
+                value={formData.goal_id}
+                onChange={handleGoalChange}
+                className="form-select"
+              >
+                <option value="">Main Cash (Default)</option>
+                {goals
+                  .filter((g) => g.current > 0 && !g.is_paid)
+                  .map((g) => (
+                    <option key={g.id} value={g.id}>
+                      {g.name} ({formatNaira(g.current)})
+                    </option>
+                  ))}
+              </select>
+            </label>
+          )}
+
           {/* NEW: Horizontal Support Type Chips */}
           {type === 'family_support' && familyTypes.length > 0 && (
             <div className="form-label">
@@ -148,7 +186,11 @@ export default function LogTab({
               value={formData.amount}
               onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
               className="form-input"
-              required
+              // FIX: Removed 'required' to prevent HTML5 validation blocking readOnly inputs.
+              // The JS check (if !parsed) handles empty amounts safely.
+              readOnly={!!formData.goal_id}
+              placeholder={formData.goal_id ? "Auto-filled from goal" : "Enter amount"}
+              style={formData.goal_id ? { opacity: 0.7, cursor: 'not-allowed' } : {}}
             />
           </label>
           

@@ -15,14 +15,12 @@ import {
   getGoals, 
   getSetting, 
   updateGoal, 
-  addTransaction, 
-  deleteGoal 
+  addTransaction
 } from '../lib/storage';
 import { calculateNetWorth, calculateMonthlySummary } from '../lib/calculations';
 import { formatNaira } from '../lib/format';
 import GoalRow from '../components/GoalRow';
 import Modal from '../components/Modal';
-import ConfirmDialog from '../components/ConfirmDialog';
 
 // Muted colors that match your dark theme
 const COLORS = [
@@ -52,7 +50,6 @@ export default function Dashboard() {
   const [currentMonth, setCurrentMonth] = useState(new Date().toISOString().slice(0, 7));
   const [payingGoal, setPayingGoal] = useState(null);
   const [editingGoal, setEditingGoal] = useState(null);
-  const [deletingGoalId, setDeletingGoalId] = useState(null);
   const [payForm, setPayForm] = useState({ 
     amount: '', 
     date: new Date().toISOString().slice(0, 10), 
@@ -86,8 +83,13 @@ export default function Dashboard() {
       const summary = calculateMonthlySummary(currentMonthTxs, currentMonth);
       const netWorthData = calculateNetWorth(transactions, startingBalance, exchangeRate, usdHoldings || 0);
 
-      // FIX: Calculate Available Balance (Total Net Worth minus money locked in goals)
-      const totalLockedInGoals = goals.reduce((sum, g) => sum + (g.current || 0), 0);
+      // FIX: Calculate Available Balance. 
+      // We filter out 'is_paid' goals because that money is already spent (reducing Net Worth),
+      // so it shouldn't be subtracted from Available balance again.
+      const totalLockedInGoals = goals
+        .filter(g => !g.is_paid)
+        .reduce((sum, g) => sum + (g.current || 0), 0);
+        
       const availableBalance = netWorthData.total - totalLockedInGoals;
 
       // Calculate Monthly Changes
@@ -167,8 +169,11 @@ export default function Dashboard() {
 
     const netWorthData = calculateNetWorth(transactions, startingBalance, exchangeRate, usdHoldings || 0);
     
-    // FIX: Calculate Available Balance
-    const totalLockedInGoals = goals.reduce((sum, g) => sum + (g.current || 0), 0);
+    // FIX: Calculate Available Balance (Ignore paid goals)
+    const totalLockedInGoals = goals
+      .filter(g => !g.is_paid)
+      .reduce((sum, g) => sum + (g.current || 0), 0);
+      
     const availableBalance = netWorthData.total - totalLockedInGoals;
     
     const prevMonthDate = new Date(currentMonth + '-01');
@@ -283,14 +288,6 @@ export default function Dashboard() {
     setEditingGoal(null);
   };
 
-  const handleDeleteConfirm = async () => {
-    if (deletingGoalId) {
-      await deleteGoal(deletingGoalId);
-      await refreshData();
-      setDeletingGoalId(null);
-    }
-  };
-
   // Month picker helpers
   const handlePrevMonth = () => {
     const date = new Date(currentMonth + '-01');
@@ -307,6 +304,15 @@ export default function Dashboard() {
   const monthName = new Date(currentMonth + '-01').toLocaleString('default', { 
     month: 'long', 
     year: 'numeric' 
+  });
+
+  // FIX: Filter and sort active goals by urgency for the Dashboard
+  const activeGoals = data.goals.filter(g => g.current < g.target);
+  const sortedActiveGoals = [...activeGoals].sort((a, b) => {
+    if (!a.deadline && !b.deadline) return 0;
+    if (a.deadline && !b.deadline) return -1;
+    if (!a.deadline && b.deadline) return 1;
+    return new Date(a.deadline) - new Date(b.deadline);
   });
 
   if (loading) return <div className="loading">Loading your finances...</div>;
@@ -415,12 +421,12 @@ export default function Dashboard() {
       <section className="section">
         <h2 className="section-title">Goals in motion</h2>
         <div className="goals-wrap">
-          {data.goals.map((g) => (
+          {/* FIX: Map over sortedActiveGoals and removed onDelete prop */}
+          {sortedActiveGoals.map((g) => (
             <GoalRow 
               key={g.id} 
               goal={g} 
               onEdit={setEditingGoal} 
-              onDelete={(id) => setDeletingGoalId(id)} 
               onPay={(goal) => {
                 const remaining = goal.target - goal.current;
                 setPayForm({ 
@@ -432,6 +438,11 @@ export default function Dashboard() {
               }} 
             />
           ))}
+          
+          {/* Show a hint if all goals are completed or none exist */}
+          {sortedActiveGoals.length === 0 && (
+            <p className="hint-text">No active goals right now. Check the Goals tab to add one!</p>
+          )}
         </div>
       </section>
 
@@ -561,13 +572,6 @@ export default function Dashboard() {
           </div>
         </form>
       </Modal>
-
-      <ConfirmDialog 
-        isOpen={!!deletingGoalId} 
-        onClose={() => setDeletingGoalId(null)} 
-        onConfirm={handleDeleteConfirm} 
-        message="Delete this goal?" 
-      />
     </div>
   );
 }
