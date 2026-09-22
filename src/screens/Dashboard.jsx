@@ -39,6 +39,7 @@ const COLORS = [
 export default function Dashboard() {
   const [data, setData] = useState({
     netWorth: 0,
+    availableBalance: 0,
     income: 0,
     expenses: 0,
     goals: [],
@@ -85,13 +86,19 @@ export default function Dashboard() {
       const summary = calculateMonthlySummary(currentMonthTxs, currentMonth);
       const netWorthData = calculateNetWorth(transactions, startingBalance, exchangeRate, usdHoldings || 0);
 
+      // FIX: Calculate Available Balance (Total Net Worth minus money locked in goals)
+      const totalLockedInGoals = goals.reduce((sum, g) => sum + (g.current || 0), 0);
+      const availableBalance = netWorthData.total - totalLockedInGoals;
+
       // Calculate Monthly Changes
+      // FIX: Only include 'expense' and 'family_support' in the monthly outflow.
+      // This ensures 'goal_transfer' doesn't artificially drop your monthly change.
       const currentIncome = currentMonthTxs
         .filter(tx => tx.type === 'income')
         .reduce((sum, tx) => sum + tx.amount, 0);
         
       const currentExpense = currentMonthTxs
-        .filter(tx => tx.type !== 'income')
+        .filter(tx => tx.type === 'expense' || tx.type === 'family_support')
         .reduce((sum, tx) => sum + tx.amount, 0);
         
       const currentDelta = currentIncome - currentExpense;
@@ -101,7 +108,7 @@ export default function Dashboard() {
         .reduce((sum, tx) => sum + tx.amount, 0);
         
       const prevExpense = prevMonthTxs
-        .filter(tx => tx.type !== 'income')
+        .filter(tx => tx.type === 'expense' || tx.type === 'family_support')
         .reduce((sum, tx) => sum + tx.amount, 0);
         
       const prevDelta = prevIncome - prevExpense;
@@ -129,6 +136,7 @@ export default function Dashboard() {
 
       setData({
         netWorth: netWorthData.total,
+        availableBalance: availableBalance,
         income: summary.income,
         expenses: summary.totalOutflow,
         goals,
@@ -159,6 +167,10 @@ export default function Dashboard() {
 
     const netWorthData = calculateNetWorth(transactions, startingBalance, exchangeRate, usdHoldings || 0);
     
+    // FIX: Calculate Available Balance
+    const totalLockedInGoals = goals.reduce((sum, g) => sum + (g.current || 0), 0);
+    const availableBalance = netWorthData.total - totalLockedInGoals;
+    
     const prevMonthDate = new Date(currentMonth + '-01');
     prevMonthDate.setMonth(prevMonthDate.getMonth() - 1);
     const prevMonthKey = prevMonthDate.toISOString().slice(0, 7);
@@ -168,12 +180,13 @@ export default function Dashboard() {
     
     const summary = calculateMonthlySummary(currentMonthTxs, currentMonth);
     
+    // FIX: Only include 'expense' and 'family_support' in the monthly outflow.
     const currentIncome = currentMonthTxs
       .filter(tx => tx.type === 'income')
       .reduce((sum, tx) => sum + tx.amount, 0);
       
     const currentExpense = currentMonthTxs
-      .filter(tx => tx.type !== 'income')
+      .filter(tx => tx.type === 'expense' || tx.type === 'family_support')
       .reduce((sum, tx) => sum + tx.amount, 0);
       
     const currentDelta = currentIncome - currentExpense;
@@ -183,7 +196,7 @@ export default function Dashboard() {
       .reduce((sum, tx) => sum + tx.amount, 0);
       
     const prevExpense = prevMonthTxs
-      .filter(tx => tx.type !== 'income')
+      .filter(tx => tx.type === 'expense' || tx.type === 'family_support')
       .reduce((sum, tx) => sum + tx.amount, 0);
       
     const prevDelta = prevIncome - prevExpense;
@@ -213,6 +226,7 @@ export default function Dashboard() {
       ...prev, 
       goals, 
       netWorth: netWorthData.total, 
+      availableBalance: availableBalance,
       income: summary.income, 
       expenses: summary.totalOutflow, 
       expenseBreakdown,
@@ -227,11 +241,10 @@ export default function Dashboard() {
     const amount = Number(payForm.amount);
     if (!amount || amount <= 0 || !payingGoal) return;
     
-    // FIX: Added goal_id so this transaction can be traced back to (and
-    // removed with) its goal if the goal is ever deleted, and so deleting
-    // this transaction later can correctly reverse the goal's progress.
+    // FIX: Changed type from 'expense' to 'goal_transfer' so it doesn't reduce Net Worth.
+    // Added goal_id so deleting the transaction reverses the goal progress.
     await addTransaction({ 
-      type: 'expense', 
+      type: 'goal_transfer', 
       category: 'Goal Payment', 
       amount, 
       date: payForm.date, 
@@ -240,11 +253,13 @@ export default function Dashboard() {
       goal_id: payingGoal.id
     });
     
+    // FIX: Cap the progress at the target so the bar can actually reach 100%
     let newCurrent = payingGoal.current + amount;
-    if (newCurrent >= payingGoal.target) newCurrent = 0;
+    if (newCurrent > payingGoal.target) {
+      newCurrent = payingGoal.target;
+    }
     
     await updateGoal(payingGoal.id, { current: newCurrent });
-    
     await refreshData();
     
     setPayingGoal(null);
@@ -308,6 +323,11 @@ export default function Dashboard() {
       <header className="page-header">
         <p className="eyebrow">Where things stand</p>
         <h1 className="hero-number">{formatNaira(data.netWorth)}</h1>
+        
+        {/* FIX: Added Available Balance line */}
+        <p className="hero-sub" style={{ color: 'var(--accent-gold)', marginTop: 8 }}>
+          Available to spend: {formatNaira(data.availableBalance)}
+        </p>
         
         {/* Only show the change if there is actual activity this month */}
         {(data.income > 0 || data.expenses > 0) && (
@@ -450,7 +470,7 @@ export default function Dashboard() {
       </section>
 
       {/* Modals */}
-      <Modal isOpen={!!payingGoal} onClose={() => setPayingGoal(null)} title={`Pay from ${payingGoal?.name}`}>
+      <Modal isOpen={!!payingGoal} onClose={() => setPayingGoal(null)} title={`Pay towards ${payingGoal?.name}`}>
         <form onSubmit={handlePaySubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           <label className="form-label">
             Amount 

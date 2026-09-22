@@ -6,18 +6,18 @@ const getUserId = async () => {
   return user?.id;
 };
 
-// ── Settings (Starting Balance & Exchange Rate) ──
+// ── Settings (Starting Balance & Exchange Rate) ─
 export const getSetting = async (key) => {
   const userId = await getUserId();
   if (!userId) return 0;
-
+  
   const { data, error } = await supabase
     .from('settings')
     .select('value')
     .eq('key', key)
     .eq('user_id', userId)
     .single();
-
+    
   // PGRST116 is the error code for "no rows found". We return 0 instead of crashing.
   if (error && error.code !== 'PGRST116') throw error;
   return data ? parseFloat(data.value) : 0;
@@ -26,11 +26,11 @@ export const getSetting = async (key) => {
 export const updateSetting = async (key, value) => {
   const userId = await getUserId();
   if (!userId) return;
-
+  
   const { error } = await supabase
     .from('settings')
     .upsert({ key, value: String(value), user_id: userId }, { onConflict: 'user_id,key' });
-
+    
   if (error) throw error;
 };
 
@@ -49,6 +49,7 @@ export const getTransactions = async (filters = {}) => {
 
 export const addTransaction = async (tx) => {
   const userId = await getUserId();
+  
   const { data, error } = await supabase
     .from('transactions')
     .insert([{
@@ -68,6 +69,7 @@ export const addTransaction = async (tx) => {
     }])
     .select()
     .single();
+    
   if (error) throw error;
   return data;
 };
@@ -86,31 +88,33 @@ export const deleteTransaction = async (id) => {
     .select('goal_id, amount')
     .eq('id', id)
     .single();
+    
   if (fetchError) throw fetchError;
-
+  
   if (tx && tx.goal_id) {
     const { data: goal, error: goalFetchError } = await supabase
       .from('goals')
       .select('current')
       .eq('id', tx.goal_id)
       .single();
-
+      
     // PGRST116 = goal already deleted separately; nothing to reverse in that case.
     if (goalFetchError && goalFetchError.code !== 'PGRST116') throw goalFetchError;
-
+    
     if (goal) {
       // Don't let progress go below 0 (e.g. if current was reset to 0 on a
       // fully-paid goal and an older partial payment is deleted afterward).
       const newCurrent = Math.max(0, goal.current - tx.amount);
-
+      
       const { error: goalUpdateError } = await supabase
         .from('goals')
         .update({ current: newCurrent })
         .eq('id', tx.goal_id);
+        
       if (goalUpdateError) throw goalUpdateError;
     }
   }
-
+  
   const { error } = await supabase.from('transactions').delete().eq('id', id);
   if (error) throw error;
 };
@@ -125,11 +129,19 @@ export const getGoals = async () => {
 
 export const addGoal = async (goal) => {
   const userId = await getUserId();
+  
   const { data, error } = await supabase
     .from('goals')
-    .insert([{ user_id: userId, name: goal.name, target: goal.target, current: 0, deadline: goal.deadline || null }])
+    .insert([{ 
+      user_id: userId, 
+      name: goal.name, 
+      target: goal.target, 
+      current: 0, 
+      deadline: goal.deadline || null 
+    }])
     .select()
     .single();
+    
   if (error) throw error;
   return data;
 };
@@ -140,12 +152,9 @@ export const updateGoal = async (id, updates) => {
 };
 
 export const deleteGoal = async (id) => {
-  // FIX: Delete this goal's linked "Goal Payment" transactions first, so
-  // deleting a goal also undoes the money that was paid toward it (net
-  // worth returns to what it was before any payment was made).
-  const { error: txError } = await supabase.from('transactions').delete().eq('goal_id', id);
-  if (txError) throw txError;
-
+  // FIX: Removed the cascading delete of transactions.
+  // We want to preserve the financial history of goal transfers.
+  // Deleting a goal only removes the tracker, not the historical money movement.
   const { error } = await supabase.from('goals').delete().eq('id', id);
   if (error) throw error;
 };
@@ -170,7 +179,7 @@ export const deleteCategory = async (id) => {
   if (error) throw error;
 };
 
-// ── People (Family Support) ──
+// ─ People (Family Support) ──
 export const getPeople = async () => {
   const userId = await getUserId();
   const { data, error } = await supabase.from('people').select('*').eq('user_id', userId).order('name');

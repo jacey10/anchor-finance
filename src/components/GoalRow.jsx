@@ -18,7 +18,7 @@ export default function GoalRow({ goal, onEdit, onDelete, onPay }) {
         {goal.deadline && <span className="goal-deadline"> · Due {goal.deadline}</span>}
       </div>
       <div className="goal-actions">
-        <button className="btn-link" onClick={() => onPay(goal)}>Pay from goal</button>
+        <button className="btn-link" onClick={() => onPay(goal)}>Pay for goal</button>
         <button className="btn-link" onClick={() => onEdit(goal)}>Edit</button>
         <button className="btn-link text-danger" onClick={() => onDelete(goal.id)}>Delete</button>
       </div>
