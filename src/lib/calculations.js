@@ -37,7 +37,7 @@ export const calculateMonthlySummary = (transactions, monthKey, exchangeRate = 1
     // Convert to NGN for summary if it's USD
     const amount = tx.currency === 'USD' ? tx.amount * exchangeRate : tx.amount;
 
-    if (tx.type === 'income') income += amount;
+    if (tx.type === 'income' && tx.source !== 'Starting Balance') income += amount;
     if (tx.type === 'expense') {
       expenses += amount;
       if (tx.impulse) impulseTotal += amount;
