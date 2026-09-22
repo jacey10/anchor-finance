@@ -1705,3 +1705,5 @@ input, select { font-family: inherit; }
 .goal-bar-fill.is-paid {
   background: var(--accent-red);
 }
+
+.goal-bar-fill-danger { height: 100%; background: var(--accent-red); border-radius: 3px; }

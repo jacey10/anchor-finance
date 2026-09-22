@@ -25,7 +25,7 @@ export const calculateNetWorth = (transactions, startingBalance, exchangeRate, u
 };
 
 // ── Monthly Summary (Dashboard) ──
-export const calculateMonthlySummary = (transactions, monthKey) => {
+export const calculateMonthlySummary = (transactions, monthKey, exchangeRate = 1) => {
   let income = 0;
   let expenses = 0;
   let familySupport = 0;
@@ -35,7 +35,7 @@ export const calculateMonthlySummary = (transactions, monthKey) => {
 
   filtered.forEach((tx) => {
     // Convert to NGN for summary if it's USD
-    const amount = tx.currency === 'USD' ? tx.amount * 1400 : tx.amount; // Note: ideally use dynamic rate
+    const amount = tx.currency === 'USD' ? tx.amount * exchangeRate : tx.amount;
 
     if (tx.type === 'income') income += amount;
     if (tx.type === 'expense') {

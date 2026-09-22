@@ -7,10 +7,19 @@ export default function Settings() {
   const [isEditing, setIsEditing] = useState(false);
   const [draftRate, setDraftRate] = useState('');
 
+  const [impulseBudget, setImpulseBudget] = useState(null);
+  const [isEditingBudget, setIsEditingBudget] = useState(false);
+  const [draftBudget, setDraftBudget] = useState('');
+
   useEffect(() => {
     getSetting('exchange_rate').then(val => {
       setExchangeRate(val);
       setDraftRate(String(val));
+    });
+
+    getSetting('impulse_budget').then(val => {
+      setImpulseBudget(val);
+      setDraftBudget(String(val));
     });
   }, []);
 
@@ -21,6 +30,18 @@ export default function Settings() {
       await updateSetting('exchange_rate', newRate);
       setExchangeRate(newRate);
       setIsEditing(false);
+    }
+  };
+
+  // Impulse budget is optional, so unlike exchange rate we allow saving 0
+  // (treated as "no budget" downstream in ImpulseInsight).
+  const handleUpdateBudget = async (e) => {
+    e.preventDefault();
+    const newBudget = Number(draftBudget);
+    if (newBudget >= 0) {
+      await updateSetting('impulse_budget', newBudget);
+      setImpulseBudget(newBudget);
+      setIsEditingBudget(false);
     }
   };
 
@@ -90,6 +111,34 @@ export default function Settings() {
           </div>
           {!isEditing && (
             <button className="btn btn-outline" onClick={() => setIsEditing(true)}>Edit</button>
+          )}
+        </div>
+
+        <div className="list-row">
+          <div className="list-row-content">
+            <div className="list-row-title">Impulse Budget</div>
+            <div className="list-row-meta">
+              {isEditingBudget ? (
+                <form onSubmit={handleUpdateBudget} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                  <input 
+                    type="number" 
+                    value={draftBudget === null ? '' : draftBudget} 
+                    onChange={(e) => setDraftBudget(e.target.value)} 
+                    className="form-input" 
+                    style={{ width: 100, padding: 6 }}
+                    autoFocus
+                  />
+
+                  <button type="submit" className="btn btn-primary" style={{ padding: '6px 12px', fontSize: 12 }}>Save</button>
+                  <button type="button" className="btn btn-ghost" onClick={() => { setIsEditingBudget(false); setDraftBudget(String(impulseBudget)); }} style={{ padding: '6px 12px', fontSize: 12 }}>Cancel</button>
+                </form>
+              ) : (
+                impulseBudget ? formatNaira(impulseBudget) : 'Not set'
+              )}
+            </div>
+          </div>
+          {!isEditingBudget && (
+            <button className="btn btn-outline" onClick={() => setIsEditingBudget(true)}>Edit</button>
           )}
         </div>
 
