@@ -723,6 +723,39 @@ input, select { font-family: inherit; }
   font-size: 10px; padding: 2px 6px; border-radius: 4px; margin-left: 8px;
   text-transform: uppercase; letter-spacing: 0.05em;
 }
+.tag-impulse {
+  background: rgba(184, 124, 107, 0.2); color: var(--accent-red);
+  font-size: 10px; padding: 2px 6px; border-radius: 4px; margin-left: 8px;
+  text-transform: uppercase; letter-spacing: 0.05em;
+}
+
+/* NEW: Goal-funded expense badge */
+.goal-summary-banner {
+  background: rgba(184, 147, 95, 0.1);
+  border: 1px solid var(--accent-gold);
+  border-radius: 6px;
+  padding: 12px 16px;
+  margin-bottom: 20px;
+  font-size: 14px;
+  color: var(--accent-gold);
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tag-goal {
+  background: rgba(184, 147, 95, 0.15); 
+  color: var(--accent-gold);
+  font-size: 10px; 
+  padding: 2px 6px; 
+  border-radius: 4px; 
+  margin-left: 8px;
+  text-transform: uppercase; 
+  letter-spacing: 0.05em;
+  font-weight: 600;
+}
+
 .search-input {
   width: 100%; padding: 10px 12px; background: var(--bg-main);
   border: 1px solid var(--border-subtle); border-radius: 4px;

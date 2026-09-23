@@ -11,21 +11,22 @@ import {
 import { formatNaira } from '../lib/format';
 import BaselineTab from '../components/BaselineTab';
 import LogTab from '../components/LogTab';
+import MonthPicker from '../components/MonthPicker';
 
 export default function Expenses() {
   const [tab, setTab] = useState('baseline');
   const [categories, setCategories] = useState([]);
   const [transactions, setTransactions] = useState([]);
-  
-  // FIX: Add goals state to track which goals have funds available
   const [goals, setGoals] = useState([]);
+  
+  // Month picker state
+  const [currentMonth, setCurrentMonth] = useState(new Date().toISOString().slice(0, 7));
   
   // Date filter state
   const [dateFilter, setDateFilter] = useState({ start: '', end: '' });
 
   useEffect(() => {
     const loadData = async () => {
-      // FIX: Fetch goals alongside categories and transactions
       const [cats, txs, g] = await Promise.all([
         getCategories(), 
         getTransactions({ type: 'expense' }),
@@ -45,66 +46,26 @@ export default function Expenses() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
-    // Insert into Supabase
     const { error } = await supabase
       .from('categories')
-      .insert([
-        {
-          name: name.trim(),
-          user_id: user.id,
-          baseline: 0 // Start with a 0 budget
-          // type: 'expense' // <-- UNCOMMENT THIS LINE ONLY if your 'categories' table has a 'type' column
-        }
-      ]);
+      .insert([{ name: name.trim(), user_id: user.id, baseline: 0 }]);
 
-    if (error) {
-      alert('Error adding category: ' + error.message);
-      return;
-    }
-
-    // Refresh the list. 
-    // Note: Make sure you import getCategories from your storage file if you haven't already!
-    const updatedCategories = await getCategories(); 
-    setCategories(updatedCategories);
+    if (error) { alert('Error adding category: ' + error.message); return; }
+    setCategories(await getCategories()); 
   };
 
   const handleDeleteCategory = async (name) => {
     if (!window.confirm(`Are you sure you want to delete the "${name}" category?`)) return;
-
     const { data: { user } } = await supabase.auth.getUser();
-    
-    // Delete from Supabase
-    const { error } = await supabase
-      .from('categories')
-      .delete()
-      .eq('name', name)
-      .eq('user_id', user.id);
-
-    if (error) {
-      alert('Error deleting category: ' + error.message);
-      return;
-    }
-
-    // Refresh the list (Make sure getCategories is imported!)
-    const updatedCategories = await getCategories(); 
-    setCategories(updatedCategories);
+    const { error } = await supabase.from('categories').delete().eq('name', name).eq('user_id', user.id);
+    if (error) { alert('Error deleting category: ' + error.message); return; }
+    setCategories(await getCategories()); 
   };
 
   const handleAdd = async (tx) => {
-    // 1. Log the expense transaction
     await addTransaction({ ...tx, type: 'expense' });
-    
-    // FIX: If this expense was paid from a specific goal, automatically mark that goal as paid
-    if (tx.goal_id) {
-      await updateGoal(tx.goal_id, { is_paid: true });
-    }
-    
-    // 2. Refresh both transactions and goals to update the UI
-    const [newTxs, newGoals] = await Promise.all([
-      getTransactions({ type: 'expense' }),
-      getGoals()
-    ]);
-    
+    if (tx.goal_id) { await updateGoal(tx.goal_id, { is_paid: true }); }
+    const [newTxs, newGoals] = await Promise.all([getTransactions({ type: 'expense' }), getGoals()]);
     setTransactions(newTxs);
     setGoals(newGoals);
   };
@@ -115,26 +76,14 @@ export default function Expenses() {
   };
 
   const handleUpdateBaseline = async (categoryName, amount) => {
-    // 1. Update the screen immediately so it feels fast
     setCategories(categories.map(c => c.name === categoryName ? { ...c, baseline: amount } : c));
-
-    // 2. Save it to Supabase
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
-
-    const { error } = await supabase
-      .from('categories')
-      .update({ baseline: amount })
-      .eq('name', categoryName)
-      .eq('user_id', user.id); // Crucial for Row Level Security!
-
-    if (error) {
-      console.error('Error updating baseline:', error.message);
-      alert('Failed to save budget to database.');
-    }
+    const { error } = await supabase.from('categories').update({ baseline: amount }).eq('name', categoryName).eq('user_id', user.id);
+    if (error) { console.error('Error updating baseline:', error.message); alert('Failed to save budget to database.'); }
   };
 
-  // Filter transactions by date range
+  // Filter transactions by date range (ONLY for the Recent Entries list)
   const filteredTransactions = transactions.filter(tx => {
     if (!dateFilter.start && !dateFilter.end) return true;
     const txDate = new Date(tx.date);
@@ -143,28 +92,18 @@ export default function Expenses() {
     return txDate >= start && txDate <= end;
   });
 
-  const baselineObj = categories.reduce((acc, c) => ({ ...acc, [c.name]: c.baseline || 0 }), {});
-  const totalBaseline = Object.values(baselineObj).reduce((a, b) => a + b, 0);
-
   return (
     <div className="screen">
       <h1 className="screen-title">Expenses</h1>
       <p className="screen-sub">Your floor, and what actually happened.</p>
 
       <div className="tab-row">
-        <button 
-          className={`tab-button ${tab === 'baseline' ? 'active' : ''}`} 
-          onClick={() => setTab('baseline')}
-        >
-          Baseline
-        </button>
-        <button 
-          className={`tab-button ${tab === 'log' ? 'active' : ''}`} 
-          onClick={() => setTab('log')}
-        >
-          Log
-        </button>
+        <button className={`tab-button ${tab === 'baseline' ? 'active' : ''}`} onClick={() => setTab('baseline')}>Baseline</button>
+        <button className={`tab-button ${tab === 'log' ? 'active' : ''}`} onClick={() => setTab('log')}>Log</button>
       </div>
+
+      {/* Month Picker controls the Budget Math */}
+      <MonthPicker currentMonth={currentMonth} onChange={setCurrentMonth} />
 
       {tab === 'baseline' ? (
         <BaselineTab 
@@ -174,47 +113,29 @@ export default function Expenses() {
           totalLabel="Total monthly expense budget"
           onAdd={handleAddCategory}
           addButtonText="+ Add Expense Category"
-          onDelete={handleDeleteCategory} // <-- ADD THIS
+          onDelete={handleDeleteCategory}
         />
       ) : (
         <div>
-          {/* Date Range Filter */}
-          <div 
-            className="form-card" 
-            style={{ marginBottom: 20, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-end', gap: 12 }}
-          >
+          {/* Date Range Filter (Controls ONLY the Recent Entries list) */}
+          <div className="form-card" style={{ marginBottom: 20, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-end', gap: 12 }}>
             <label className="form-label" style={{ flex: 1, minWidth: 120 }}>
               Date From
-              <input 
-                type="date" 
-                value={dateFilter.start} 
-                onChange={(e) => setDateFilter({...dateFilter, start: e.target.value})} 
-                className="form-input" 
-              />
+              <input type="date" value={dateFilter.start} onChange={(e) => setDateFilter({...dateFilter, start: e.target.value})} className="form-input" />
             </label>
             <label className="form-label" style={{ flex: 1, minWidth: 120 }}>
               Date To
-              <input 
-                type="date" 
-                value={dateFilter.end} 
-                onChange={(e) => setDateFilter({...dateFilter, end: e.target.value})} 
-                className="form-input" 
-              />
+              <input type="date" value={dateFilter.end} onChange={(e) => setDateFilter({...dateFilter, end: e.target.value})} className="form-input" />
             </label>
-            <button 
-              className="btn btn-ghost" 
-              onClick={() => setDateFilter({ start: '', end: '' })}
-              style={{ height: 42 }}
-            >
-              Clear Filter
-            </button>
+            <button className="btn btn-ghost" onClick={() => setDateFilter({ start: '', end: '' })} style={{ height: 42 }}>Clear Filter</button>
           </div>
 
-          {/* FIX: Pass goals down to LogTab so it can render the "Pay from Goal" dropdown */}
           <LogTab 
-            transactions={filteredTransactions} 
+            allTransactions={transactions} 
+            filteredTransactions={filteredTransactions} 
             categories={categories} 
             goals={goals}
+            currentMonth={currentMonth}
             type="expense" 
             onAdd={handleAdd} 
             onDelete={handleDelete} 

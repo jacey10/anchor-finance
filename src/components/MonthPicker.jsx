@@ -16,10 +16,12 @@ export default function MonthPicker({ currentMonth, onChange }) {
   };
 
   return (
-    <div className="month-picker">
-      <button onClick={handlePrev} className="btn-icon">←</button>
+    // FIX: Changed className from "month-picker" to "month-selector" 
+    // to match the CSS in index.css
+    <div className="month-selector">
+      <button onClick={handlePrev} className="btn-icon" aria-label="Previous month">←</button>
       <span className="month-label">{monthName}</span>
-      <button onClick={handleNext} className="btn-icon">→</button>
+      <button onClick={handleNext} className="btn-icon" aria-label="Next month">→</button>
     </div>
   );
 }

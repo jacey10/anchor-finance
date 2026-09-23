@@ -3,10 +3,12 @@ import { formatNaira } from '../lib/format';
 import TransactionRow from './TransactionRow';
 
 export default function LogTab({
-  transactions,
+  allTransactions,       // FIX: All transactions for baseline math
+  filteredTransactions,  // FIX: Date-filtered transactions for the list
   categories,
   familyTypes = [],
   goals = [],
+  currentMonth,          // FIX: Current selected month
   type,
   onAdd,
   onDelete,
@@ -23,6 +25,11 @@ export default function LogTab({
     goal_id: ''
   });
 
+  // FIX: Filter transactions for the current month to calculate Actual vs Baseline
+  const monthlyTransactions = useMemo(() => {
+    return allTransactions.filter(tx => tx.date.startsWith(currentMonth));
+  }, [allTransactions, currentMonth]);
+
   const byCategory = useMemo(() => {
     const map = {};
     
@@ -30,19 +37,26 @@ export default function LogTab({
       map[c.name] = 0;
     });
     
-    transactions.forEach(t => {
+    // FIX: Use monthlyTransactions instead of all transactions
+    monthlyTransactions.forEach(t => {
       if (map[t.category] !== undefined) {
         map[t.category] += t.amount;
       }
     });
     
     return map;
-  }, [transactions, categories]);
+  }, [monthlyTransactions, categories]);
+
+  // FIX: Calculate total goal-funded spending for the current month
+  const goalFundedTotal = useMemo(() => {
+    return monthlyTransactions
+      .filter(tx => tx.goal_id)
+      .reduce((sum, tx) => sum + tx.amount, 0);
+  }, [monthlyTransactions]);
 
   // FIX: Handle goal selection directly and safely
   const handleGoalChange = (e) => {
     const goalId = e.target.value;
-    // Use String() to ensure ID matching works whether IDs are numbers or strings
     const selectedGoal = goals.find(g => String(g.id) === String(goalId));
     
     setFormData(prev => ({
@@ -106,14 +120,22 @@ export default function LogTab({
         })}
       </div>
 
+      {/* FIX: Goal Summary Banner */}
+      {goalFundedTotal > 0 && (
+        <div className="goal-summary-banner">
+          🎯 Goal-funded spending this month: {formatNaira(goalFundedTotal)}
+        </div>
+      )}
+
       <h2 className="section-title" style={{ marginTop: 32 }}>Recent Entries</h2>
       
       <div className="list-wrap">
-        {transactions.length === 0 && (
-          <p className="hint-text">Nothing logged yet this month.</p>
+        {/* FIX: Check filteredTransactions length instead */}
+        {filteredTransactions.length === 0 && (
+          <p className="hint-text">Nothing logged in this period.</p>
         )}
         
-        {transactions.map(tx => (
+        {filteredTransactions.map(tx => (
           <TransactionRow
             key={tx.id}
             transaction={tx}
@@ -186,8 +208,6 @@ export default function LogTab({
               value={formData.amount}
               onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
               className="form-input"
-              // FIX: Removed 'required' to prevent HTML5 validation blocking readOnly inputs.
-              // The JS check (if !parsed) handles empty amounts safely.
               readOnly={!!formData.goal_id}
               placeholder={formData.goal_id ? "Auto-filled from goal" : "Enter amount"}
               style={formData.goal_id ? { opacity: 0.7, cursor: 'not-allowed' } : {}}

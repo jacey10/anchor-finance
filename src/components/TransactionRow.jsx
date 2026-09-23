@@ -8,7 +8,11 @@ export default function TransactionRow({ transaction, onDelete }) {
         <div className="list-row-title">
           {/* FIX: Added transaction.source to the list of things to check */}
           {transaction.category || transaction.person || transaction.source}
+          
           {transaction.impulse && <span className="tag-impulse">Impulse</span>}
+          
+          {/* FIX: Add visual badge if the expense was paid from a goal */}
+          {transaction.goal_id && <span className="tag-goal">🎯 Goal</span>}
         </div>
         
         {/* FIX: Removed the inline duplicate. Kept only the clean badge. */}
