@@ -205,6 +205,8 @@ export default function LogTab({
             Amount
             <input
               type="number"
+              min="0"
+              step="0.01"
               value={formData.amount}
               onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
               className="form-input"

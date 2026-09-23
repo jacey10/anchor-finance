@@ -1,12 +1,12 @@
 // Formats full Naira amounts (e.g., ₦1,400,000)
 export const formatNaira = (n) => {
-  // If it's still loading (null), return an empty string so nothing flashes
-  if (n === null || n === undefined) return ''; 
-  
-  // If it's actually zero, show zero
+  if (n === null || n === undefined) return '';
   if (n === 0) return '₦0';
-  
-  return '₦' + n.toLocaleString('en-NG', { maximumFractionDigits: 0 });
+
+  return '₦' + Number(n).toLocaleString('en-NG', {
+    minimumFractionDigits: Number.isInteger(Number(n)) ? 0 : 2,
+    maximumFractionDigits: 2
+  });
 };
 
 // Formats compact Naira amounts (e.g., ₦1.4M or ₦50k)
