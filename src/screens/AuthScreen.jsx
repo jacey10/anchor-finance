@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
+import { setHasAccount } from '../lib/accountFlag';
 
 export default function AuthScreen({ defaultMode = 'signin' }) {
   const navigate = useNavigate();
@@ -28,7 +29,12 @@ export default function AuthScreen({ defaultMode = 'signin' }) {
       if (isLogin) {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
-        
+
+        // This device now has a confirmed working session — mark it so
+        // future visits skip the landing page and go straight to /signin
+        // if the session ever expires or they log out.
+        setHasAccount();
+
         // FIX: Force reload to clear memory
         window.location.href = '/app'; 
 
@@ -37,11 +43,17 @@ export default function AuthScreen({ defaultMode = 'signin' }) {
         if (error) throw error;
         
         // If Supabase returns a session, it means email confirmation is OFF.
-        // We should log them in and send them to the dashboard immediately.n
+        // We should log them in and send them to the dashboard immediately.
         if (data.session) {
+          setHasAccount();
+
           // FIX: Force reload to clear memory
           window.location.href = '/app'; 
         } else {
+          // No session yet — they still need to confirm their email.
+          // Deliberately NOT setting hasAccount here: this device hasn't
+          // actually authenticated yet, so it should still be treated as
+          // landing-page-eligible until they come back and sign in for real.
           setMessage('Account created! Please check your email to confirm.');
         }
       }
@@ -51,10 +63,6 @@ export default function AuthScreen({ defaultMode = 'signin' }) {
       setLoading(false);
     }
   };
-
-  // ... (keep the rest of your beautiful JSX form exactly as it was) ...
-  // Just make sure the "Sign Up" and "Log In" toggle links update the URL:
-  // onClick={() => navigate(isLogin ? '/signup' : '/signin')}
 
   return (
     <div className="auth-split-screen">

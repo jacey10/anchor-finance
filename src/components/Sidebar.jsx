@@ -1,5 +1,6 @@
 import React from 'react';
 import UserProfileDropdown from './UserProfileDropdown.jsx';
+import { Link } from 'react-router-dom';
 
 export default function Sidebar({ activeScreen, setScreen, onLogout }) {
   const items = [
@@ -13,11 +14,11 @@ export default function Sidebar({ activeScreen, setScreen, onLogout }) {
 
   return (
     <nav className="sidebar">
-      {/* 1. Brand (Left on Desktop, Top-Left on Mobile) */}
-      <div className="brand" onClick={() => setScreen('dashboard')}>
+      {/*  1. Brand (Left on Desktop, Top-Left on Mobile) → ALWAYS goes to /home */}
+      <Link to="/home" className="brand">
         <span className="brand-mark">⚓</span>
         <span className="brand-name">Anchor Vault</span>
-      </div>
+      </Link>
 
       {/* 2. Navigation Wrapper (Center on Desktop, Bottom Row on Mobile) */}
       <div className="nav-scroll-container">
