@@ -1,17 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { 
   getGoals, addGoal, updateGoal, deleteGoal, addTransaction,
-  getWishlistItems, addWishlistItem, updateWishlistItem, deleteWishlistItem
+  getWishlistItems, addWishlistItem, updateWishlistItem, deleteWishlistItem,
+  getNotes, addNote, deleteNote
 } from '../lib/storage';
 import GoalRow from '../components/GoalRow';
 import WishlistRow from '../components/WishlistRow';
+import NoteRow from '../components/NoteRow';
 import Modal from '../components/Modal';
 import ConfirmDialog from '../components/ConfirmDialog';
 
 export default function Goals() {
   const [goals, setGoals] = useState([]);
   const [wishlistItems, setWishlistItems] = useState([]);
-  const [activeTab, setActiveTab] = useState('active'); // 'active' | 'completed' | 'wishlist'
+  const [notes, setNotes] = useState([]);
+  const [activeTab, setActiveTab] = useState('active'); // 'active' | 'completed' | 'wishlist' | 'notes'
   
   const [showAddForm, setShowAddForm] = useState(false);
   const [addForm, setAddForm] = useState({ name: '', target: '', deadline: '' });
@@ -19,11 +22,15 @@ export default function Goals() {
   const [showAddWishForm, setShowAddWishForm] = useState(false);
   const [addWishForm, setAddWishForm] = useState({ name: '', note: '' });
   
+  const [showAddNoteForm, setShowAddNoteForm] = useState(false);
+  const [newNoteContent, setNewNoteContent] = useState('');
+  
   // Modal States
   const [editingGoal, setEditingGoal] = useState(null);
   const [payingGoal, setPayingGoal] = useState(null);
   const [deletingGoalId, setDeletingGoalId] = useState(null);
   const [deletingWishId, setDeletingWishId] = useState(null);
+  const [deletingNoteId, setDeletingNoteId] = useState(null);
   
   // Form Data for Modals
   const [payForm, setPayForm] = useState({ 
@@ -40,6 +47,7 @@ export default function Goals() {
   useEffect(() => { 
     loadGoals(); 
     loadWishlist();
+    loadNotes();
   }, []);
 
   const loadGoals = async () => {
@@ -58,6 +66,11 @@ export default function Goals() {
     setWishlistItems(data);
   };
 
+  const loadNotes = async () => {
+    const data = await getNotes();
+    setNotes(data);
+  };
+
   const handleAdd = async (e) => {
     e.preventDefault();
     await addGoal({ ...addForm, target: Number(addForm.target) });
@@ -73,6 +86,15 @@ export default function Goals() {
     await loadWishlist();
     setShowAddWishForm(false);
     setAddWishForm({ name: '', note: '' });
+  };
+
+  const handleAddNote = async (e) => {
+    e.preventDefault();
+    if (!newNoteContent.trim()) return;
+    await addNote(newNoteContent.trim());
+    await loadNotes();
+    setShowAddNoteForm(false);
+    setNewNoteContent('');
   };
 
   const openEdit = (goal) => {
@@ -155,6 +177,14 @@ export default function Goals() {
     }
   };
 
+  const handleDeleteNoteConfirm = async () => {
+    if (deletingNoteId) {
+      await deleteNote(deletingNoteId);
+      await loadNotes();
+      setDeletingNoteId(null);
+    }
+  };
+
   // FIX: New handlers for marking goals as paid/unpaid
   const handleMarkAsPaid = async (goal) => {
     await updateGoal(goal.id, { is_paid: true });
@@ -208,6 +238,12 @@ export default function Goals() {
           onClick={() => setActiveTab('wishlist')}
         >
           Wishlist
+        </button>
+        <button 
+          className={`tab-button ${activeTab === 'notes' ? 'active' : ''}`}
+          onClick={() => setActiveTab('notes')}
+        >
+          Notes
         </button>
       </div>
       
@@ -388,6 +424,62 @@ export default function Goals() {
           )}
         </>
       )}
+      
+      {/* Notes Tab */}
+      {activeTab === 'notes' && (
+        <>
+          <h2 className="section-title">Notes</h2>
+          <div className="list-wrap">
+            {notes.map(note => (
+              <NoteRow 
+                key={note.id} 
+                note={note} 
+                onDelete={(id) => setDeletingNoteId(id)}
+              />
+            ))}
+            {notes.length === 0 && (
+              <p className="hint-text">No notes yet. Jot something down below.</p>
+            )}
+          </div>
+          
+          <button 
+            onClick={() => setShowAddNoteForm(!showAddNoteForm)} 
+            className="btn btn-outline" 
+            style={{ marginTop: '4px' }}
+          >
+            + Add Note
+          </button>
+          
+          {showAddNoteForm && (
+            <form onSubmit={handleAddNote} className="form-card">
+              <label className="form-label">
+                Note
+                <textarea
+                  value={newNoteContent}
+                  onChange={e => setNewNoteContent(e.target.value)}
+                  className="form-input"
+                  rows={4}
+                  placeholder="e.g. Borrowed ₦20,000 from Chidi, Sept 12"
+                  required
+                  style={{ resize: 'vertical', fontFamily: 'inherit' }}
+                />
+              </label>
+              <div className="form-actions">
+                <button 
+                  type="button" 
+                  className="btn btn-ghost" 
+                  onClick={() => setShowAddNoteForm(false)}
+                >
+                  Cancel
+                </button>
+                <button type="submit" className="btn btn-primary">
+                  Save Note
+                </button>
+              </div>
+            </form>
+          )}
+        </>
+      )}
 
       {/* Edit Modal */}
       <Modal isOpen={!!editingGoal} onClose={() => setEditingGoal(null)} title="Edit Goal">
@@ -500,6 +592,13 @@ export default function Goals() {
         onClose={() => setDeletingWishId(null)} 
         onConfirm={handleDeleteWishConfirm} 
         message="Remove this from your wishlist? This cannot be undone." 
+      />
+      
+      <ConfirmDialog 
+        isOpen={!!deletingNoteId} 
+        onClose={() => setDeletingNoteId(null)} 
+        onConfirm={handleDeleteNoteConfirm} 
+        message="Delete this note? This cannot be undone." 
       />
     </div>
   );
