@@ -159,6 +159,42 @@ export const deleteGoal = async (id) => {
   if (error) throw error;
 };
 
+// ── Wishlist ──
+export const getWishlistItems = async () => {
+  const userId = await getUserId();
+  const { data, error } = await supabase.from('wishlist_items').select('*').eq('user_id', userId).order('created_at', { ascending: false });
+  if (error) throw error;
+  return data || [];
+};
+
+export const addWishlistItem = async (item) => {
+  const userId = await getUserId();
+  
+  const { data, error } = await supabase
+    .from('wishlist_items')
+    .insert([{ 
+      user_id: userId, 
+      name: item.name, 
+      note: item.note || null,
+      status: 'wishing'
+    }])
+    .select()
+    .single();
+    
+  if (error) throw error;
+  return data;
+};
+
+export const updateWishlistItem = async (id, updates) => {
+  const { error } = await supabase.from('wishlist_items').update(updates).eq('id', id);
+  if (error) throw error;
+};
+
+export const deleteWishlistItem = async (id) => {
+  const { error } = await supabase.from('wishlist_items').delete().eq('id', id);
+  if (error) throw error;
+};
+
 // ── Categories (Expenses) ──
 export const getCategories = async () => {
   const userId = await getUserId();
