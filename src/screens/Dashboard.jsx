@@ -16,12 +16,43 @@ import { formatNaira } from '../lib/format';
 import GoalRow from '../components/GoalRow';
 import Modal from '../components/Modal';
 import ImpulseInsight from '../components/ImpulseInsight';
-import MonthPicker from '../components/MonthPicker'; // FIX: Import reusable MonthPicker
+import MonthPicker from '../components/MonthPicker';
 
 const COLORS = [
   '#B8935F', '#8FA98A', '#5A7F9F', '#B87C6B',
   '#9F8FA9', '#7FA9BF', '#D4A373', '#A98FA9'
 ];
+
+// ─────────────────────────────────────────────
+// HISTORICAL TREND CALCULATION
+// ─────────────────────────────────────────────
+const calculateHistoricalTrend = (allTransactions, exchangeRate) => {
+  const trendData = [];
+  const today = new Date();
+  
+  // Generate the last 6 months (including current month)
+  for (let i = 5; i >= 0; i--) {
+    const targetDate = new Date(today.getFullYear(), today.getMonth() - i, 1);
+    const monthName = targetDate.toLocaleString('default', { month: 'short' });
+    
+    // Calculate the last day of this target month
+    const lastDayOfMonth = new Date(targetDate.getFullYear(), targetDate.getMonth() + 1, 0);
+    const lastDayKey = lastDayOfMonth.toISOString().slice(0, 10);
+
+    // Filter transactions up to the end of this month
+    const historicalTxs = allTransactions.filter(tx => tx.date <= lastDayKey);
+
+    // Calculate Net Worth for this snapshot
+    const snapshot = calculateNetWorth(historicalTxs, exchangeRate);
+
+    trendData.push({
+      month: monthName,
+      value: snapshot.total
+    });
+  }
+  
+  return trendData;
+};
 
 export default function Dashboard() {
   const [data, setData] = useState({
@@ -40,10 +71,7 @@ export default function Dashboard() {
   });
 
   const [loading, setLoading] = useState(true);
-
-  // Month picker state
   const [currentMonth, setCurrentMonth] = useState(new Date().toISOString().slice(0, 7));
-
   const [payingGoal, setPayingGoal] = useState(null);
   const [editingGoal, setEditingGoal] = useState(null);
   const [insightTab, setInsightTab] = useState('breakdown');
@@ -65,12 +93,11 @@ export default function Dashboard() {
   // ─────────────────────────────────────────────
   useEffect(() => {
     const loadData = async () => {
-      const [transactions, goals, startingBalance, exchangeRate, usdHoldings, impulseBudget] = await Promise.all([
+      // REMOVED: starting_balance and usd_holdings
+      const [transactions, goals, exchangeRate, impulseBudget] = await Promise.all([
         getTransactions(),
         getGoals(),
-        getSetting('starting_balance'),
         getSetting('exchange_rate'),
-        getSetting('usd_holdings'),
         getSetting('impulse_budget')
       ]);
 
@@ -87,48 +114,31 @@ export default function Dashboard() {
       const summary = calculateMonthlySummary(currentMonthTxs, currentMonth, exchangeRate);
       const prevSummary = calculateMonthlySummary(prevMonthTxs, prevMonthKey, exchangeRate);
 
-      // Net worth
-      const netWorthData = calculateNetWorth(
-        transactions,
-        startingBalance,
-        exchangeRate,
-        usdHoldings || 0
-      );
+      // Net worth (Removed startingBalance argument)
+      const netWorthData = calculateNetWorth(transactions, exchangeRate);
 
-      // ─────────────────────────────────────────
-      // AVAILABLE BALANCE
-      // ─────────────────────────────────────────
-
+      // Available balance
       const totalLockedInGoals = goals
         .filter((goal) => !goal.is_paid)
         .reduce((sum, goal) => sum + (goal.current || 0), 0);
 
       const availableBalance = netWorthData.total - totalLockedInGoals;
 
-      // ─────────────────────────────────────────
-      // MONTHLY CHANGE
-      // ─────────────────────────────────────────
-
+      // Monthly change
       const currentDelta = summary.income - summary.totalOutflow;
       const prevDelta = prevSummary.income - prevSummary.totalOutflow;
 
       let percentageChange = 0;
-
       if (prevDelta !== 0) {
         percentageChange = ((currentDelta - prevDelta) / Math.abs(prevDelta)) * 100;
       }
 
-      // ─────────────────────────────────────────
-      // EXPENSE BREAKDOWN
-      // ─────────────────────────────────────────
-
+      // Expense breakdown
       const breakdownMap = {};
-
       currentMonthTxs
         .filter((tx) => tx.type === 'expense' || tx.type === 'family_support')
         .forEach((tx) => {
           const category = tx.category || tx.person || 'Other';
-          // Convert to NGN if it's a USD transaction, same as the monthly summary
           const amount = tx.currency === 'USD' ? tx.amount * exchangeRate : tx.amount;
           breakdownMap[category] = (breakdownMap[category] || 0) + amount;
         });
@@ -138,9 +148,8 @@ export default function Dashboard() {
         value
       }));
 
-      // ─────────────────────────────────────────
-      // SET DASHBOARD DATA
-      // ─────────────────────────────────────────
+      // Calculate real historical trend
+      const realTrend = calculateHistoricalTrend(transactions, exchangeRate);
 
       setData({
         netWorth: netWorthData.total,
@@ -154,10 +163,7 @@ export default function Dashboard() {
         expenseBreakdown,
         monthlyChange: currentDelta,
         percentageChange,
-        trend: [
-          { month: 'Apr', value: 420000 },
-          { month: 'Sep', value: netWorthData.total }
-        ]
+        trend: realTrend
       });
 
       setLoading(false);
@@ -169,24 +175,18 @@ export default function Dashboard() {
   // ─────────────────────────────────────────────
   // REFRESH DATA
   // ─────────────────────────────────────────────
-
   const refreshData = async () => {
     const goals = await getGoals();
     const transactions = await getTransactions();
 
-    const [startingBalance, exchangeRate, usdHoldings, impulseBudget] = await Promise.all([
-      getSetting('starting_balance'),
+    // REMOVED: starting_balance and usd_holdings
+    const [exchangeRate, impulseBudget] = await Promise.all([
       getSetting('exchange_rate'),
-      getSetting('usd_holdings'),
       getSetting('impulse_budget')
     ]);
 
-    const netWorthData = calculateNetWorth(
-      transactions,
-      startingBalance,
-      exchangeRate,
-      usdHoldings || 0
-    );
+    // Net worth (Removed startingBalance argument)
+    const netWorthData = calculateNetWorth(transactions, exchangeRate);
 
     // Available balance
     const totalLockedInGoals = goals
@@ -213,19 +213,16 @@ export default function Dashboard() {
     const prevDelta = prevSummary.income - prevSummary.totalOutflow;
 
     let percentageChange = 0;
-
     if (prevDelta !== 0) {
       percentageChange = ((currentDelta - prevDelta) / Math.abs(prevDelta)) * 100;
     }
 
     // Expense breakdown
     const breakdownMap = {};
-
     currentMonthTxs
       .filter((tx) => tx.type === 'expense' || tx.type === 'family_support')
       .forEach((tx) => {
         const category = tx.category || tx.person || 'Other';
-        // Convert to NGN if it's a USD transaction, same as the monthly summary
         const amount = tx.currency === 'USD' ? tx.amount * exchangeRate : tx.amount;
         breakdownMap[category] = (breakdownMap[category] || 0) + amount;
       });
@@ -235,7 +232,9 @@ export default function Dashboard() {
       value
     }));
 
-    // Update state
+    // Calculate real historical trend
+    const realTrend = calculateHistoricalTrend(transactions, exchangeRate);
+
     setData((prev) => ({
       ...prev,
       goals,
@@ -248,22 +247,19 @@ export default function Dashboard() {
       impulseBudget,
       expenseBreakdown,
       monthlyChange: currentDelta,
-      percentageChange
+      percentageChange,
+      trend: realTrend
     }));
   };
 
   // ─────────────────────────────────────────────
   // PAY GOAL
   // ─────────────────────────────────────────────
-
   const handlePaySubmit = async (e) => {
     e.preventDefault();
-
     const amount = Number(payForm.amount);
-
     if (!amount || amount <= 0 || !payingGoal) return;
 
-    // Goal transfers are not treated as expenses.
     await addTransaction({
       type: 'goal_transfer',
       category: 'Goal Payment',
@@ -274,9 +270,7 @@ export default function Dashboard() {
       goal_id: payingGoal.id
     });
 
-    // Cap goal progress at the target.
     let newCurrent = payingGoal.current + amount;
-
     if (newCurrent > payingGoal.target) {
       newCurrent = payingGoal.target;
     }
@@ -285,7 +279,6 @@ export default function Dashboard() {
     await refreshData();
 
     setPayingGoal(null);
-
     setPayForm({
       amount: '',
       date: new Date().toISOString().slice(0, 10),
@@ -296,16 +289,13 @@ export default function Dashboard() {
   // ─────────────────────────────────────────────
   // EDIT GOAL
   // ─────────────────────────────────────────────
-
   const handleEditSubmit = async (e) => {
     e.preventDefault();
-
     await updateGoal(editingGoal.id, {
       name: editForm.name,
       target: Number(editForm.target),
       deadline: editForm.deadline || null
     });
-
     await refreshData();
     setEditingGoal(null);
   };
@@ -313,19 +303,13 @@ export default function Dashboard() {
   // ─────────────────────────────────────────────
   // ACTIVE GOALS
   // ─────────────────────────────────────────────
-
   const activeGoals = data.goals.filter((goal) => goal.current < goal.target);
-
   const sortedActiveGoals = [...activeGoals].sort((a, b) => {
     if (!a.deadline && !b.deadline) return 0;
     if (a.deadline && !b.deadline) return -1;
     if (!a.deadline && b.deadline) return 1;
     return new Date(a.deadline) - new Date(b.deadline);
   });
-
-  // ─────────────────────────────────────────────
-  // LOADING
-  // ─────────────────────────────────────────────
 
   if (loading) {
     return <div className="loading">Loading your finances...</div>;
@@ -334,26 +318,19 @@ export default function Dashboard() {
   // ─────────────────────────────────────────────
   // RENDER
   // ─────────────────────────────────────────────
-
   return (
     <div className="screen">
-      {/* FIX: Replaced inline month selector with reusable MonthPicker */}
       <MonthPicker 
         currentMonth={currentMonth} 
         onChange={setCurrentMonth} 
       />
 
-      {/* Header */}
       <header className="page-header">
         <p className="eyebrow">Where things stand</p>
-
         <h1 className="hero-number">{formatNaira(data.netWorth)}</h1>
-
         <p className="hero-sub" style={{ color: 'var(--accent-gold)', marginTop: 8 }}>
           Available to spend: {formatNaira(data.availableBalance)}
         </p>
-
-        {/* Only show change when there is activity */}
         {(data.income > 0 || data.expenses > 0) && (
           <div className="networth-change">
            <span className={`change-value ${
@@ -363,34 +340,28 @@ export default function Dashboard() {
           }`}>
             {data.monthlyChange > 0 ? '▲' : data.monthlyChange < 0 ? '▼' : '▶'} {formatNaira(Math.abs(data.monthlyChange))}
           </span>
-
             <span className="change-percent">
               ({data.percentageChange.toFixed(1)}% vs last month)
             </span>
           </div>
         )}
-
         <p className="hero-sub">Total Net Worth</p>
       </header>
 
-      {/* Monthly Summary */}
       <section className="grid-two">
         <div className="summary-block">
           <p className="summary-label">Income this month</p>
           <p className="summary-value">{formatNaira(data.income)}</p>
         </div>
-
         <div className="summary-block">
           <p className="summary-label">Outflow this month</p>
           <p className="summary-value">{formatNaira(data.expenses)}</p>
         </div>
       </section>
 
-      {/* Spending Insights */}
       {data.expenses > 0 && (
         <section className="section">
           <h2 className="section-title">Spending Insights</h2>
-
           <div
             className="insight-tabs"
             style={{
@@ -409,7 +380,6 @@ export default function Dashboard() {
             >
               Where My Money Went
             </button>
-
             <button
               type="button"
               className={`btn ${insightTab === 'impulse' ? 'btn-primary' : 'btn-ghost'}`}
@@ -439,7 +409,6 @@ export default function Dashboard() {
                       />
                     ))}
                   </Pie>
-
                   <Tooltip
                     contentStyle={{
                       background: '#16283C',
@@ -451,20 +420,16 @@ export default function Dashboard() {
                   />
                 </PieChart>
               </ResponsiveContainer>
-
               <div className="pie-legend">
                 {data.expenseBreakdown.map((entry, index) => {
                   const percentage = Math.round((entry.value / data.expenses) * 100);
-
                   return (
                     <div key={entry.name} className="legend-item">
                       <span
                         className="legend-dot"
                         style={{ background: COLORS[index % COLORS.length] }}
                       />
-
                       <span className="legend-text">{entry.name}</span>
-
                       <span className="legend-value">
                         {formatNaira(entry.value)} ({percentage}%)
                       </span>
@@ -485,10 +450,8 @@ export default function Dashboard() {
         </section>
       )}
 
-      {/* Goals */}
       <section className="section">
         <h2 className="section-title">Goals in motion</h2>
-
         <div className="goals-wrap">
           {sortedActiveGoals.map((goal) => (
             <GoalRow
@@ -497,18 +460,15 @@ export default function Dashboard() {
               onEdit={setEditingGoal}
               onPay={(selectedGoal) => {
                 const remaining = selectedGoal.target - selectedGoal.current;
-
                 setPayForm({
                   amount: String(remaining > 0 ? remaining : selectedGoal.target),
                   date: new Date().toISOString().slice(0, 10),
                   note: ''
                 });
-
                 setPayingGoal(selectedGoal);
               }}
             />
           ))}
-
           {sortedActiveGoals.length === 0 && (
             <p className="hint-text">
               No active goals right now. Check the Goals tab to add one!
@@ -517,10 +477,8 @@ export default function Dashboard() {
         </div>
       </section>
 
-      {/* Net Worth Trend */}
       <section className="section">
         <h2 className="section-title">Net worth trend</h2>
-
         <div className="chart-wrap">
           <ResponsiveContainer width="100%" height={180}>
             <LineChart data={data.trend}>
@@ -531,9 +489,7 @@ export default function Dashboard() {
                 axisLine={{ stroke: '#2A3B4D' }}
                 tickLine={false}
               />
-
               <YAxis hide />
-
               <Tooltip
                 contentStyle={{
                   background: '#16283C',
@@ -543,20 +499,19 @@ export default function Dashboard() {
                 }}
                 formatter={(value) => [formatNaira(value), 'Net worth']}
               />
-
               <Line
                 type="monotone"
                 dataKey="value"
                 stroke="#B8935F"
                 strokeWidth={2}
-                dot={{ fill: '#B8935F', r: 3 }}
+                dot={{ fill: '#B8935F', r: 3, strokeWidth: 0 }}
+                activeDot={{ r: 5, fill: '#F3EEE4' }}
               />
             </LineChart>
           </ResponsiveContainer>
         </div>
       </section>
 
-      {/* Pay Goal Modal */}
       <Modal
         isOpen={!!payingGoal}
         onClose={() => setPayingGoal(null)}
@@ -576,7 +531,6 @@ export default function Dashboard() {
               required
             />
           </label>
-
           <label className="form-label">
             Date
             <input
@@ -587,7 +541,6 @@ export default function Dashboard() {
               required
             />
           </label>
-
           <label className="form-label">
             Note
             <input
@@ -597,7 +550,6 @@ export default function Dashboard() {
               className="form-input"
             />
           </label>
-
           <div className="form-actions">
             <button
               type="button"
@@ -606,7 +558,6 @@ export default function Dashboard() {
             >
               Cancel
             </button>
-
             <button type="submit" className="btn btn-primary">
               Confirm
             </button>
@@ -614,7 +565,6 @@ export default function Dashboard() {
         </form>
       </Modal>
 
-      {/* Edit Goal Modal */}
       <Modal
         isOpen={!!editingGoal}
         onClose={() => setEditingGoal(null)}
@@ -634,7 +584,6 @@ export default function Dashboard() {
               required
             />
           </label>
-
           <label className="form-label">
             Target
             <input
@@ -645,7 +594,6 @@ export default function Dashboard() {
               required
             />
           </label>
-
           <label className="form-label">
             Deadline
             <input
@@ -655,7 +603,6 @@ export default function Dashboard() {
               className="form-input"
             />
           </label>
-
           <div className="form-actions">
             <button
               type="button"
@@ -664,7 +611,6 @@ export default function Dashboard() {
             >
               Cancel
             </button>
-
             <button type="submit" className="btn btn-primary">
               Update
             </button>

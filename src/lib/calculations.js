@@ -1,8 +1,7 @@
-// ── Net Worth Engine ─
-export const calculateNetWorth = (transactions, startingBalance, exchangeRate) => {
-  // NGN starts with the manual starting balance from settings.
-  // USD starts at 0 and is built entirely from transactions.
-  let ngnTotal = startingBalance;
+// ── Net Worth Engine ──
+export const calculateNetWorth = (transactions, exchangeRate) => {
+  // Both start at 0. Everything comes from transactions now.
+  let ngnTotal = 0;
   let usdTotal = 0;
 
   transactions.forEach((tx) => {

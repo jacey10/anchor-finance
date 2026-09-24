@@ -10,13 +10,13 @@ export default function NetWorth() {
 
   useEffect(() => {
     const calc = async () => {
-      const [txs, start, rate] = await Promise.all([
+      const [txs, rate] = await Promise.all([
         getTransactions(), 
-        getSetting('starting_balance'), 
         getSetting('exchange_rate')
       ]);
       
-      const calculated = calculateNetWorth(txs, start, rate);
+      // Removed 'startingBalance'
+      const calculated = calculateNetWorth(txs, rate);
       setData(calculated);
       setExchangeRate(rate || 1);
     };

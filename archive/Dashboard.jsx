@@ -67,7 +67,6 @@ export default function Dashboard() {
       const [transactions, goals, startingBalance, exchangeRate, usdHoldings, impulseBudget] = await Promise.all([
         getTransactions(),
         getGoals(),
-        getSetting('starting_balance'),
         getSetting('exchange_rate'),
         getSetting('usd_holdings'),
         getSetting('impulse_budget')
@@ -175,7 +174,6 @@ export default function Dashboard() {
     const transactions = await getTransactions();
 
     const [startingBalance, exchangeRate, usdHoldings, impulseBudget] = await Promise.all([
-      getSetting('starting_balance'),
       getSetting('exchange_rate'),
       getSetting('usd_holdings'),
       getSetting('impulse_budget')
