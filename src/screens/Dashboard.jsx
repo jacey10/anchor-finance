@@ -485,7 +485,7 @@ export default function Dashboard() {
               <XAxis
                 dataKey="month"
                 stroke="#5A6B7A"
-                tick={{ fill: '#8A98A5', fontSize: 12 }}
+                tick={{ fill: '#8A98A5', fontSize: 12, dy:10 }}
                 axisLine={{ stroke: '#2A3B4D' }}
                 tickLine={false}
               />
@@ -504,8 +504,8 @@ export default function Dashboard() {
                 dataKey="value"
                 stroke="#B8935F"
                 strokeWidth={2}
-                dot={{ fill: '#B8935F', r: 3, strokeWidth: 0 }}
-                activeDot={{ r: 5, fill: '#F3EEE4' }}
+                dot={{ fill: '#B8935F', r: 5, strokeWidth: 0 }}
+                activeDot={{ r: 7, fill: '#F3EEE4' }}
               />
             </LineChart>
           </ResponsiveContainer>

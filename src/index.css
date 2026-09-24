@@ -1747,3 +1747,9 @@ input, select { font-family: inherit; }
 }
 
 .goal-bar-fill-danger { height: 100%; background: var(--accent-red); border-radius: 3px; }
+
+/* Kill the tap highlight/focus rectangle on charts */
+.chart-wrap:focus,
+.chart-wrap *:focus {
+  outline: none;
+}
