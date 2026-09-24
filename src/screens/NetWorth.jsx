@@ -1,45 +1,27 @@
 import React, { useState, useEffect } from 'react';
 import { LineChart, Line, ResponsiveContainer, XAxis, YAxis, Tooltip } from 'recharts';
-import { getTransactions, getSetting, updateSetting } from '../lib/storage';
+import { getTransactions, getSetting } from '../lib/storage';
 import { calculateNetWorth } from '../lib/calculations';
 import { formatNaira, formatUSD } from '../lib/format';
 
 export default function NetWorth() {
-  const [data, setData] = useState({ total: 0, ngn: 0, usd: 0, usdHoldings: 0 });
-  const [isEditingUSD, setIsEditingUSD] = useState(false);
-  const [draftUSD, setDraftUSD] = useState('');
-  const [exchangeRate, setExchangeRate] = useState(null);
+  const [data, setData] = useState({ total: 0, ngn: 0, usd: 0 });
+  const [exchangeRate, setExchangeRate] = useState(1);
 
   useEffect(() => {
     const calc = async () => {
-      const [txs, start, rate, usdHoldings] = await Promise.all([
+      const [txs, start, rate] = await Promise.all([
         getTransactions(), 
         getSetting('starting_balance'), 
-        getSetting('exchange_rate'),
-        getSetting('usd_holdings')
+        getSetting('exchange_rate')
       ]);
       
-      const calculated = calculateNetWorth(txs, start, rate, usdHoldings || 0);
-      setData({ ...calculated, usdHoldings: usdHoldings || 0 });
-      setExchangeRate(rate);
-      setDraftUSD(String(usdHoldings || 0));
+      const calculated = calculateNetWorth(txs, start, rate);
+      setData(calculated);
+      setExchangeRate(rate || 1);
     };
     calc();
   }, []);
-
-  const handleUpdateUSD = async (e) => {
-    e.preventDefault();
-    const value = Number(draftUSD);
-    if (value >= 0) {
-      await updateSetting('usd_holdings', value);
-      const [txs, start, rate] = await Promise.all([
-        getTransactions(), getSetting('starting_balance'), getSetting('exchange_rate'),
-      ]);
-      const recalculated = calculateNetWorth(txs, start, rate, value);
-      setData({ ...recalculated, usdHoldings: value });
-      setIsEditingUSD(false);
-    }
-  };
 
   return (
     <div className="screen">
@@ -59,28 +41,11 @@ export default function NetWorth() {
         
         <div className="networth-card">
           <div className="networth-label">USD Holdings</div>
-          <div className="networth-value" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            {isEditingUSD ? (
-              <form onSubmit={handleUpdateUSD} style={{ display: 'flex', gap: 8, width: '100%' }}>
-                <input 
-                  type="number" 
-                  value={draftUSD} 
-                  onChange={(e) => setDraftUSD(e.target.value)} 
-                  className="form-input" 
-                  style={{ width: 100, padding: 4 }}
-                  autoFocus
-                />
-                <button type="submit" className="btn btn-primary" style={{ padding: '4px 8px', fontSize: 12 }}>Save</button>
-              </form>
-            ) : (
-              <span onClick={() => setIsEditingUSD(true)} style={{ cursor: 'pointer', width: '100%' }}>
-                {formatUSD(data.usdHoldings)} 
-                
-                <span style={{ color: 'var(--text-muted)', fontSize: 14, marginLeft: 8 }}>
-                  ≈ {exchangeRate === null ? '...' : formatNaira(data.usdHoldings * exchangeRate)}
-                </span>
-              </span>
-            )}
+          <div className="networth-value" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 4 }}>
+            <span>{formatUSD(data.usd)}</span>
+            <span style={{ color: 'var(--text-muted)', fontSize: 12, fontWeight: 'normal' }}>
+              ≈ {formatNaira(data.usd * exchangeRate)}
+            </span>
           </div>
         </div>
       </div>

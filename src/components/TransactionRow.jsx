@@ -1,7 +1,12 @@
 import React from 'react';
-import { formatNaira } from '../lib/format';
+import { formatNaira, formatUSD } from '../lib/format';
 
 export default function TransactionRow({ transaction, onDelete }) {
+  // Determine the correct formatter based on currency
+  const formattedAmount = transaction.currency === 'USD' 
+    ? formatUSD(transaction.amount) 
+    : formatNaira(transaction.amount);
+
   return (
     <div className="list-row">
       <div className="list-row-content">
@@ -12,7 +17,7 @@ export default function TransactionRow({ transaction, onDelete }) {
           {transaction.impulse && <span className="tag-impulse">Impulse</span>}
           
           {/* FIX: Add visual badge if the expense was paid from a goal */}
-          {transaction.goal_id && <span className="tag-goal">🎯 Goal</span>}
+          {transaction.goal_id && <span className="tag-goal"> Goal</span>}
         </div>
         
         {/* FIX: Removed the inline duplicate. Kept only the clean badge. */}
@@ -31,7 +36,8 @@ export default function TransactionRow({ transaction, onDelete }) {
       </div>
       
       <div className="list-row-actions">
-        <div className="list-row-amount">{formatNaira(transaction.amount)}</div>
+        {/* FIX: Use the dynamically chosen formatter */}
+        <div className="list-row-amount">{formattedAmount}</div>
         <button 
           className="btn-icon-small" 
           onClick={() => onDelete(transaction.id)}

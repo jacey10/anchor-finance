@@ -1,7 +1,9 @@
-// ── Net Worth Engine ──
-export const calculateNetWorth = (transactions, startingBalance, exchangeRate, usdHoldings = 0) => {
+// ── Net Worth Engine ─
+export const calculateNetWorth = (transactions, startingBalance, exchangeRate) => {
+  // NGN starts with the manual starting balance from settings.
+  // USD starts at 0 and is built entirely from transactions.
   let ngnTotal = startingBalance;
-  let usdTotal = usdHoldings;
+  let usdTotal = 0;
 
   transactions.forEach((tx) => {
     if (tx.type === 'income') {
@@ -37,6 +39,7 @@ export const calculateMonthlySummary = (transactions, monthKey, exchangeRate = 1
     // Convert to NGN for summary if it's USD
     const amount = tx.currency === 'USD' ? tx.amount * exchangeRate : tx.amount;
 
+    // DETECTION: Exclude the exact string "Starting Balance" from monthly income charts
     if (tx.type === 'income' && tx.source !== 'Starting Balance') income += amount;
     if (tx.type === 'expense') {
       expenses += amount;

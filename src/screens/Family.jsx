@@ -229,16 +229,21 @@ export default function Family() {
           />
         </div>
       ) : (
+        
         <LogTab 
-          transactions={transactions} 
+          allTransactions={transactions}
+          filteredTransactions={transactions} 
+          currentMonth={new Date().toISOString().slice(0, 7)} // e.g., "2026-09"
           categories={people.map(p => ({ name: p.name, baseline: p.budget }))} 
-          familyTypes={familyTypes} // NEW: Pass types to LogTab
+          familyTypes={familyTypes} 
+          goals={[]} // LogTab expects this, even if empty
           type="family_support" 
           onAdd={handleAdd} 
           onDelete={handleDelete}
           onBeforeAdd={handleBeforeAdd}
         />
       )}
+      
 
       {warning && (
         <OverageWarning 

@@ -241,6 +241,30 @@ export const deleteCategory = async (id) => {
   if (error) throw error;
 };
 
+// ── Income Sources ──
+export const getIncomeSources = async () => {
+  const userId = await getUserId();
+  const { data, error } = await supabase.from('income_sources').select('*').eq('user_id', userId).order('name');
+  if (error) throw error;
+  return data || [];
+};
+
+export const addIncomeSource = async (name, defaultCurrency = 'NGN') => {
+  const userId = await getUserId();
+  const { data, error } = await supabase
+    .from('income_sources')
+    .insert([{ user_id: userId, name, default_currency: defaultCurrency }])
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+};
+
+export const deleteIncomeSource = async (id) => {
+  const { error } = await supabase.from('income_sources').delete().eq('id', id);
+  if (error) throw error;
+};
+
 // ─ People (Family Support) ──
 export const getPeople = async () => {
   const userId = await getUserId();
