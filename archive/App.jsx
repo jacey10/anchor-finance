@@ -3,7 +3,6 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { useSession } from './hooks/useSession';
 import { getHasAccount } from './lib/accountFlag';
 import { supabase } from './lib/supabase';
-import { InstallProvider } from './InstallContext';
 
 // Import all your screens
 import LandingPage from './screens/LandingPage.jsx';
@@ -87,32 +86,30 @@ function AppLayout() {
 // --- 4. MAIN APP & ROUTING ---
 export default function App() {
   return (
-    <InstallProvider>
-      <Router>
-        <Routes>
-          {/* Smart entry point — session-aware */}
-          <Route path="/" element={<RootRoute />} />
+    <Router>
+      <Routes>
+        {/* Smart entry point — session-aware */}
+        <Route path="/" element={<RootRoute />} />
 
-          {/* Always-static marketing page — for the logo click, session-agnostic.
-              No session checks here at all, on purpose. */}
-          <Route path="/home" element={<LandingPage />} />
+        {/* Always-static marketing page — for the logo click, session-agnostic.
+            No session checks here at all, on purpose. */}
+        <Route path="/home" element={<LandingPage />} />
 
-          <Route path="/signin" element={<AuthScreen defaultMode="signin" />} />
-          <Route path="/signup" element={<AuthScreen defaultMode="signup" />} />
+        <Route path="/signin" element={<AuthScreen defaultMode="signin" />} />
+        <Route path="/signup" element={<AuthScreen defaultMode="signup" />} />
 
-          {/* PRIVATE SIDE */}
-          <Route 
-            path="/app/*" 
-            element={
-              <ProtectedRoute>
-                <AppLayout />
-              </ProtectedRoute>
-            } 
-          />
+        {/* PRIVATE SIDE */}
+        <Route 
+          path="/app/*" 
+          element={
+            <ProtectedRoute>
+              <AppLayout />
+            </ProtectedRoute>
+          } 
+        />
 
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </Router>
-    </InstallProvider>
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </Router>
   );
 }
