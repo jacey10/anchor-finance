@@ -1,12 +1,19 @@
 const CACHE = 'anchor-v2';
-const ASSETS = ['/', '/index.html', '/manifest.json', '/icon.svg'];
+const ASSETS = [
+  '/', 
+  '/index.html', 
+  '/manifest.json', 
+  '/apple-touch-icon.png', 
+  '/favicon-32x32.png', 
+  '/favicon-16x16.png'
+];
 
 // 1. Install: Cache core assets
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(ASSETS)));
 });
 
-// 2. Activate: Delete old caches (The missing piece)
+// 2. Activate: Delete old caches (Prevents the "Cache Trap")
 self.addEventListener('activate', (e) => {
   e.waitUntil(
     caches.keys().then((cacheNames) => {
