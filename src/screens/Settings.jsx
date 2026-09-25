@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { getSetting, updateSetting, getTransactions } from '../lib/storage';
 import { formatNaira } from '../lib/format';
+import InstallAppCard from '../components/InstallAppCard';
 
 export default function Settings() {
   const [exchangeRate, setExchangeRate] = useState(null);
@@ -149,6 +150,11 @@ export default function Settings() {
           </div>
           <button className="btn btn-outline" onClick={handleExport}>Export</button>
         </div>
+      </div>
+            
+      <h2 className="section-title">App Experience</h2>
+      <div className="list-wrap">
+        <InstallAppCard />
       </div>
     </div>
   );
