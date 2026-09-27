@@ -51,6 +51,18 @@ To allow users to log their initial wealth without artificially inflating their 
 ### 3. Dynamic Sources vs. Hardcoded Arrays
 Early versions hardcoded income sources (e.g., `['Freelance', 'Salary']`). This was refactored to a dedicated `income_sources` database table. This ensures the app scales infinitely without requiring code deployments when a user starts a new side hustle.
 
+### 4. Referential Integrity for Goal-Linked Transactions
+Transactions tied to a savings goal (`goal_id`) are enforced with a foreign key back to the `goals` table (`ON DELETE SET NULL`). If a goal is deleted, its historical transactions are preserved — they simply become unlinked rather than disappearing or referencing a goal that no longer exists. This keeps financial history intact even as goals are created, completed, or removed.
+
+---
+
+## 📸 Screenshots
+
+![Dashboard view](./screenshots/dashboard.png)
+![Transactions view](./screenshots/transactions.png)
+![Goals view](./screenshots/goals.png)
+![Wishlist view](./screenshots/family.png)
+
 ---
 
 ## 🗺️ Future Roadmap (v2)
@@ -64,11 +76,11 @@ Early versions hardcoded income sources (e.g., `['Freelance', 'Salary']`). This 
 
 ## 👤 Author
 
-*   **Jacey** - [https://jacey10.vercel.app/]
+*   **Jacey** - [Portfolio](https://jacey10.vercel.app/)
 
 ## 📄 License
 
-MIT License. 
+All Rights Reserved. This project's source code is proprietary and is not licensed for reuse, modification, or redistribution.
 
 ---
 
