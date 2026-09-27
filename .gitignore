@@ -25,3 +25,5 @@ dist-ssr
 .env
 
 .vercel
+SETUP.md
+supabase/schema.sql
