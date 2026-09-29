@@ -7,8 +7,10 @@ import {
   deleteTransaction,
   getGoals,
   updateGoal,
-  getAccounts // V2 UPDATE: Added getAccounts
+  getAccounts,
+  getSetting
 } from '../lib/storage';
+import { calculateNetWorth } from '../lib/calculations';
 import { formatNaira } from '../lib/format';
 import BaselineTab from '../components/BaselineTab';
 import LogTab from '../components/LogTab';
@@ -19,24 +21,29 @@ export default function Expenses() {
   const [categories, setCategories] = useState([]);
   const [transactions, setTransactions] = useState([]);
   const [goals, setGoals] = useState([]);
-  const [accounts, setAccounts] = useState([]); // V2 UPDATE: Added accounts state
+  const [accounts, setAccounts] = useState([]); 
   
   const [currentMonth, setCurrentMonth] = useState(new Date().toISOString().slice(0, 7));
   const [dateFilter, setDateFilter] = useState({ start: '', end: '' });
 
   useEffect(() => {
     const loadData = async () => {
-      // V2 UPDATE: Fetch accounts alongside other data
-      const [cats, txs, g, accs] = await Promise.all([
-        getCategories(),
-        getTransactions({ type: 'expense' }),
+      // V2 FIX: Fetch ALL transactions for the math engine, and expense-only for the UI
+      const [allTxs, expenseTxs, g, accs, rate] = await Promise.all([
+        getTransactions(), // Needed for accurate live balance calculation
+        getTransactions({ type: 'expense' }), // Needed for the UI list
         getGoals(),
-        getAccounts()
+        getAccounts(),
+        getSetting('exchange_rate')
       ]);
-      setCategories(cats);
-      setTransactions(txs);
+      
+      // Calculate live balances using ALL transactions
+      const netWorthData = calculateNetWorth(allTxs, accs, rate || 1);
+      
+      setCategories(await getCategories());
+      setTransactions(expenseTxs);
       setGoals(g);
-      setAccounts(accs);
+      setAccounts(netWorthData.accounts);
     };
     loadData();
   }, []);
@@ -61,13 +68,28 @@ export default function Expenses() {
     setCategories(await getCategories());
   };
 
+  // V2 FIX: Completely rewritten to fetch ALL transactions for accurate live balance recalculation
   const handleAdd = async (tx) => {
     await addTransaction({ ...tx, type: 'expense' });
-    // V2 UPDATE: When expense is tagged with goal, mark goal as paid
-    if (tx.goal_id) { await updateGoal(tx.goal_id, { is_paid: true }); }
-    const [newTxs, newGoals] = await Promise.all([getTransactions({ type: 'expense' }), getGoals()]);
-    setTransactions(newTxs);
+    
+    if (tx.goal_id) { 
+      await updateGoal(tx.goal_id, { is_paid: true }); 
+    }
+    
+    // Fetch ALL transactions to recalculate the true live balance
+    const [allTxs, expenseTxs, newGoals, newAccs, rate] = await Promise.all([
+      getTransactions(), 
+      getTransactions({ type: 'expense' }),
+      getGoals(),
+      getAccounts(),
+      getSetting('exchange_rate')
+    ]);
+
+    const netWorthData = calculateNetWorth(allTxs, newAccs, rate || 1);
+
+    setTransactions(expenseTxs);
     setGoals(newGoals);
+    setAccounts(netWorthData.accounts); // Update state with true live balances
   };
 
   const handleDelete = async (id) => {
@@ -127,7 +149,6 @@ export default function Expenses() {
             <button className="btn btn-ghost" onClick={() => setDateFilter({ start: '', end: '' })} style={{ height: 42 }}>Clear Filter</button>
           </div>
           
-          {/* V2 UPDATE: Pass accounts down to LogTab */}
           <LogTab 
             allTransactions={transactions} 
             filteredTransactions={filteredTransactions} 
