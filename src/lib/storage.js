@@ -6,18 +6,11 @@ const getUserId = async () => {
   return user?.id;
 };
 
-// ── Settings (Exchange Rate) ──
+// ── Settings ─
 export const getSetting = async (key) => {
   const userId = await getUserId();
   if (!userId) return 0;
-  
-  const { data, error } = await supabase
-    .from('settings')
-    .select('value')
-    .eq('key', key)
-    .eq('user_id', userId)
-    .single();
-    
+  const { data, error } = await supabase.from('settings').select('value').eq('key', key).eq('user_id', userId).single();
   if (error && error.code !== 'PGRST116') throw error;
   return data ? parseFloat(data.value) : 0;
 };
@@ -25,47 +18,36 @@ export const getSetting = async (key) => {
 export const updateSetting = async (key, value) => {
   const userId = await getUserId();
   if (!userId) return;
-  
-  const { error } = await supabase
-    .from('settings')
-    .upsert({ key, value: String(value), user_id: userId }, { onConflict: 'user_id,key' });
-    
+  const { error } = await supabase.from('settings').upsert({ key, value: String(value), user_id: userId }, { onConflict: 'user_id,key' });
   if (error) throw error;
 };
 
-// ── Accounts (V2 Addition) ──
+// ── Accounts ──
 export const getAccounts = async () => {
   const userId = await getUserId();
-  // FIX: Removed 'balance' from select because it doesn't exist in the schema.
-  // We only need 'starting_balance', and the math engine calculates the live balance.
   const { data, error } = await supabase
     .from('accounts')
-    .select('id, name, currency, starting_balance, created_at')
+    .select('id, name, currency, starting_balance, starting_balance_date, created_at')
     .eq('user_id', userId)
     .order('created_at', { ascending: true });
     
   if (error) throw error;
   
-  // Normalize data: ensure starting_balance is a number
-  return (data || []).map(acc => ({
-    ...acc,
-    starting_balance: Number(acc.starting_balance) || 0
+  return (data || []).map(acc => ({ 
+    ...acc, 
+    starting_balance: Number(acc.starting_balance) || 0 
   }));
 };
 
 export const addAccount = async (account) => {
   const userId = await getUserId();
-  const { data, error } = await supabase
-    .from('accounts')
-    .insert([{ 
-      user_id: userId, 
-      name: account.name, 
-      currency: account.currency || 'NGN', 
-      // Explicitly cast to Number to prevent string-to-0 coercion issues
-      starting_balance: Number(account.starting_balance) || 0 
-    }])
-    .select()
-    .single();
+  const { data, error } = await supabase.from('accounts').insert([{ 
+    user_id: userId, 
+    name: account.name, 
+    currency: account.currency || 'NGN', 
+    starting_balance: Number(account.starting_balance) || 0,
+    starting_balance_date: account.starting_balance_date || new Date().toISOString().slice(0, 10) // V2 FIX: Save the date
+  }]).select().single();
   if (error) throw error;
   return data;
 };
@@ -84,10 +66,8 @@ export const deleteAccount = async (id) => {
 export const getTransactions = async (filters = {}) => {
   const userId = await getUserId();
   let query = supabase.from('transactions').select('*').eq('user_id', userId).order('date', { ascending: false });
-  
   if (filters.type) query = query.eq('type', filters.type);
   if (filters.month) query = query.gte('date', `${filters.month}-01`).lte('date', `${filters.month}-31`);
-  
   const { data, error } = await query;
   if (error) throw error;
   return data || [];
@@ -95,51 +75,35 @@ export const getTransactions = async (filters = {}) => {
 
 export const addTransaction = async (tx) => {
   const userId = await getUserId();
-  
-  const { data, error } = await supabase
-    .from('transactions')
-    .insert([{
-      user_id: userId,
-      type: tx.type,
-      source: tx.source || null,
-      category: tx.category || null,
-      person: tx.person || null,
-      support_type: tx.support_type || null,
-      amount: tx.amount,
-      currency: tx.currency || 'NGN',
-      note: tx.note || null,
-      date: tx.date,
-      recurring: tx.recurring || false,
-      impulse: tx.impulse || false,
-      goal_id: tx.goal_id || null,
-      account_id: tx.account_id || null,
-      transfer_to_account_id: tx.transfer_to_account_id || null
-    }])
-    .select()
-    .single();
-    
+  const { data, error } = await supabase.from('transactions').insert([{
+    user_id: userId,
+    type: tx.type,
+    source: tx.source || null,
+    category: tx.category || null,
+    person: tx.person || null,
+    support_type: tx.support_type || null,
+    amount: tx.amount,
+    currency: tx.currency || 'NGN',
+    note: tx.note || null,
+    date: tx.date,
+    recurring: tx.recurring || false,
+    impulse: tx.impulse || false,
+    goal_id: tx.goal_id || null,
+    account_id: tx.account_id || null,
+    transfer_to_account_id: tx.transfer_to_account_id || null,
+    fee: Number(tx.fee) || 0
+  }]).select().single();
   if (error) throw error;
 
-  // V2 UPDATE: If this is a transfer tagged with a goal, update the goal's progress atomically
   if (tx.type === 'transfer' && tx.goal_id) {
-    const { data: goal, error: goalFetchError } = await supabase
-      .from('goals')
-      .select('current')
-      .eq('id', tx.goal_id)
-      .single();
-      
+    const { data: goal, error: goalFetchError } = await supabase.from('goals').select('current').eq('id', tx.goal_id).single();
     if (goalFetchError && goalFetchError.code !== 'PGRST116') throw goalFetchError;
-    
     if (goal) {
       const newCurrent = (goal.current || 0) + tx.amount;
-      const { error: goalUpdateError } = await supabase
-        .from('goals')
-        .update({ current: newCurrent })
-        .eq('id', tx.goal_id);
+      const { error: goalUpdateError } = await supabase.from('goals').update({ current: newCurrent }).eq('id', tx.goal_id);
       if (goalUpdateError) throw goalUpdateError;
     }
   }
-
   return data;
 };
 
@@ -149,33 +113,17 @@ export const updateTransaction = async (id, updates) => {
 };
 
 export const deleteTransaction = async (id) => {
-  const { data: tx, error: fetchError } = await supabase
-    .from('transactions')
-    .select('goal_id, amount')
-    .eq('id', id)
-    .single();
-    
+  const { data: tx, error: fetchError } = await supabase.from('transactions').select('goal_id, amount').eq('id', id).single();
   if (fetchError) throw fetchError;
-  
   if (tx && tx.goal_id) {
-    const { data: goal, error: goalFetchError } = await supabase
-      .from('goals')
-      .select('current')
-      .eq('id', tx.goal_id)
-      .single();
-      
+    const { data: goal, error: goalFetchError } = await supabase.from('goals').select('current').eq('id', tx.goal_id).single();
     if (goalFetchError && goalFetchError.code !== 'PGRST116') throw goalFetchError;
-    
     if (goal) {
       const newCurrent = Math.max(0, goal.current - tx.amount);
-      const { error: goalUpdateError } = await supabase
-        .from('goals')
-        .update({ current: newCurrent })
-        .eq('id', tx.goal_id);
+      const { error: goalUpdateError } = await supabase.from('goals').update({ current: newCurrent }).eq('id', tx.goal_id);
       if (goalUpdateError) throw goalUpdateError;
     }
   }
-  
   const { error } = await supabase.from('transactions').delete().eq('id', id);
   if (error) throw error;
 };
@@ -190,17 +138,7 @@ export const getGoals = async () => {
 
 export const addGoal = async (goal) => {
   const userId = await getUserId();
-  const { data, error } = await supabase
-    .from('goals')
-    .insert([{ 
-      user_id: userId, 
-      name: goal.name, 
-      target: goal.target, 
-      current: 0, 
-      deadline: goal.deadline || null 
-    }])
-    .select()
-    .single();
+  const { data, error } = await supabase.from('goals').insert([{ user_id: userId, name: goal.name, target: goal.target, current: 0, deadline: goal.deadline || null }]).select().single();
   if (error) throw error;
   return data;
 };
@@ -225,11 +163,7 @@ export const getWishlistItems = async () => {
 
 export const addWishlistItem = async (item) => {
   const userId = await getUserId();
-  const { data, error } = await supabase
-    .from('wishlist_items')
-    .insert([{ user_id: userId, name: item.name, note: item.note || null, status: 'wishing' }])
-    .select()
-    .single();
+  const { data, error } = await supabase.from('wishlist_items').insert([{ user_id: userId, name: item.name, note: item.note || null, status: 'wishing' }]).select().single();
   if (error) throw error;
   return data;
 };
@@ -244,7 +178,7 @@ export const deleteWishlistItem = async (id) => {
   if (error) throw error;
 };
 
-// ── Notes ──
+// ─ Notes ──
 export const getNotes = async () => {
   const userId = await getUserId();
   const { data, error } = await supabase.from('notes').select('*').eq('user_id', userId).order('created_at', { ascending: false });
@@ -264,7 +198,7 @@ export const deleteNote = async (id) => {
   if (error) throw error;
 };
 
-// ── Categories (Expenses) ──
+// ── Categories ──
 export const getCategories = async () => {
   const userId = await getUserId();
   const { data, error } = await supabase.from('categories').select('*').eq('user_id', userId).order('name');
@@ -294,11 +228,7 @@ export const getIncomeSources = async () => {
 
 export const addIncomeSource = async (name, defaultCurrency = 'NGN') => {
   const userId = await getUserId();
-  const { data, error } = await supabase
-    .from('income_sources')
-    .insert([{ user_id: userId, name, default_currency: defaultCurrency }])
-    .select()
-    .single();
+  const { data, error } = await supabase.from('income_sources').insert([{ user_id: userId, name, default_currency: defaultCurrency }]).select().single();
   if (error) throw error;
   return data;
 };
@@ -308,7 +238,7 @@ export const deleteIncomeSource = async (id) => {
   if (error) throw error;
 };
 
-// ─ People (Family Support) ──
+// ── People ──
 export const getPeople = async () => {
   const userId = await getUserId();
   const { data, error } = await supabase.from('people').select('*').eq('user_id', userId).order('name');
@@ -333,7 +263,7 @@ export const deletePerson = async (id) => {
   if (error) throw error;
 };
 
-// ── Family Types ──
+// ─ Family Types ──
 export const getFamilyTypes = async () => {
   const { data, error } = await supabase.from('family_types').select('*').order('name');
   if (error) throw error;

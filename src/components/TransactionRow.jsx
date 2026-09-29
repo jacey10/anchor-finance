@@ -2,25 +2,29 @@ import React from 'react';
 import { formatNaira, formatUSD } from '../lib/format';
 
 export default function TransactionRow({ transaction, onDelete }) {
-  // Determine the correct formatter based on currency
   const formattedAmount = transaction.currency === 'USD' 
     ? formatUSD(transaction.amount) 
     : formatNaira(transaction.amount);
+
+  // V2 FIX: Safely parse the fee to ensure it renders correctly
+  const feeAmount = Number(transaction.fee) || 0;
+  const formattedFee = feeAmount > 0 
+    ? (transaction.currency === 'USD' ? formatUSD(feeAmount) : formatNaira(feeAmount))
+    : null;
+
+  const title = transaction.type === 'bank_fee' 
+    ? 'Bank Fee' 
+    : (transaction.category || transaction.person || transaction.source || 'Transaction');
 
   return (
     <div className="list-row">
       <div className="list-row-content">
         <div className="list-row-title">
-          {/* FIX: Added transaction.source to the list of things to check */}
-          {transaction.category || transaction.person || transaction.source}
-          
+          {title}
           {transaction.impulse && <span className="tag-impulse">Impulse</span>}
-          
-          {/* FIX: Add visual badge if the expense was paid from a goal */}
           {transaction.goal_id && <span className="tag-goal"> Goal</span>}
         </div>
         
-        {/* FIX: Removed the inline duplicate. Kept only the clean badge. */}
         {transaction.support_type && (
           <span 
             className="support-type-badge" 
@@ -31,12 +35,14 @@ export default function TransactionRow({ transaction, onDelete }) {
         )}
         
         <div className="list-row-meta">
-          {transaction.date}{transaction.note ? ` · ${transaction.note}` : ''}
+          {transaction.date}
+          {/* V2 FIX: Render the fee if it exists */}
+          {formattedFee && ` · Bank charge: ${formattedFee}`}
+          {transaction.note ? ` · ${transaction.note}` : ''}
         </div>
       </div>
       
       <div className="list-row-actions">
-        {/* FIX: Use the dynamically chosen formatter */}
         <div className="list-row-amount">{formattedAmount}</div>
         <button 
           className="btn-icon-small" 

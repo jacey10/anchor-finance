@@ -1,27 +1,40 @@
-// ── Net Worth Engine (V2) ──
-export const calculateNetWorth = (transactions, accounts, exchangeRate) => {
-  // V2 UPDATE: We now initialize balances from each account's starting_balance.
+// ── Net Worth Engine (V2) ─
+// V2 UPDATE: Added optional 'asOfDate' parameter for historical trend calculations
+export const calculateNetWorth = (transactions, accounts, exchangeRate, asOfDate = null) => {
   const accountBalances = {};
   const safeAccounts = accounts || [];
 
   safeAccounts.forEach((acc) => {
+    let initialBalance = Number(acc.starting_balance) || 0;
+    
+    // V2 FIX: If calculating a historical snapshot, check if the account existed yet
+    if (asOfDate && acc.starting_balance_date) {
+      const snapshotDate = new Date(asOfDate);
+      const accountOpenDate = new Date(acc.starting_balance_date);
+      
+      // If the snapshot date is before the account was opened, starting balance is 0
+      if (snapshotDate < accountOpenDate) {
+        initialBalance = 0;
+      }
+    }
+
     accountBalances[acc.id] = {
       id: acc.id,
       name: acc.name,
       currency: acc.currency || 'NGN',
-      starting_balance: Number(acc.starting_balance) || 0, // V2 FIX: Include starting_balance so UI can display it
-      balance: Number(acc.starting_balance) || 0
+      starting_balance: Number(acc.starting_balance) || 0, // Keep original for UI display
+      balance: initialBalance // Use adjusted balance for math
     };
   });
 
   let totalNgn = 0;
   let totalUsd = 0;
 
-  // 2. Apply transactions to the specific accounts
   transactions.forEach((tx) => {
     const amount = tx.amount;
+    const fee = Number(tx.fee) || 0;
 
-    // V2 UPDATE: Handle Transfers with cross-currency support
+    // V2 UPDATE: Handle Transfers with cross-currency support AND transfer fees
     if (tx.type === 'transfer' && tx.account_id && tx.transfer_to_account_id) {
       const fromAcc = accountBalances[tx.account_id];
       const toAcc = accountBalances[tx.transfer_to_account_id];
@@ -29,20 +42,23 @@ export const calculateNetWorth = (transactions, accounts, exchangeRate) => {
       if (fromAcc && toAcc) {
         if (fromAcc.currency !== toAcc.currency) {
           if (fromAcc.currency === 'NGN' && toAcc.currency === 'USD') {
-            fromAcc.balance -= amount;
+            fromAcc.balance -= (amount + fee);
             toAcc.balance += (amount / exchangeRate);
-          }
-          else if (fromAcc.currency === 'USD' && toAcc.currency === 'NGN') {
-            fromAcc.balance -= amount;
+          } else if (fromAcc.currency === 'USD' && toAcc.currency === 'NGN') {
+            fromAcc.balance -= (amount + fee);
             toAcc.balance += (amount * exchangeRate);
           }
         } else {
-          fromAcc.balance -= amount;
+          fromAcc.balance -= (amount + fee);
           toAcc.balance += amount;
         }
       }
     }
-    // V2 UPDATE: Handle Goal Payments with account deduction
+    // V2 UPDATE: Handle standalone Bank Fees (SMS, maintenance, etc.)
+    else if (tx.type === 'bank_fee' && tx.account_id && accountBalances[tx.account_id]) {
+      accountBalances[tx.account_id].balance -= amount;
+    }
+    // Handle Goal Payments with account deduction
     else if (tx.type === 'goal_transfer' && tx.account_id && accountBalances[tx.account_id]) {
       accountBalances[tx.account_id].balance -= amount;
     }
@@ -54,7 +70,7 @@ export const calculateNetWorth = (transactions, accounts, exchangeRate) => {
         accountBalances[tx.account_id].balance -= amount;
       }
     }
-    // Fallback for legacy transactions without an account_id.
+    // Fallback for legacy transactions without an account_id
     else {
       if (tx.type === 'income') {
         if (tx.currency === 'USD') totalUsd += amount;
@@ -66,17 +82,15 @@ export const calculateNetWorth = (transactions, accounts, exchangeRate) => {
     }
   });
 
-  // 3. Calculate final totals from the computed account balances + legacy totals
   const finalAccountsList = Object.values(accountBalances).map(acc => {
     if (acc.currency === 'USD') {
       totalUsd += acc.balance;
     } else {
       totalNgn += acc.balance;
     }
-    return acc; // This now safely includes starting_balance!
+    return acc;
   });
 
-  // Convert USD to NGN for the grand total
   const totalNetWorth = totalNgn + (totalUsd * exchangeRate);
 
   return {
@@ -90,10 +104,7 @@ export const calculateNetWorth = (transactions, accounts, exchangeRate) => {
 
 // ── Available to Spend Engine (V2 Addition) ──
 export const calculateAvailableToSpend = (netWorthData, goals) => {
-  // Total cash across all accounts (NGN + USD converted to NGN)
   const totalCash = netWorthData.ngn + netWorthData.usdInNgn;
-
-  // V2 UPDATE: Only count goals that are NOT yet paid (is_paid = false)
   const totalGoalProgress = goals
     .filter(goal => !goal.is_paid)
     .reduce((sum, goal) => sum + (goal.current || 0), 0);
@@ -114,13 +125,12 @@ export const calculateMonthlySummary = (transactions, monthKey, exchangeRate = 1
     const amount = tx.currency === 'USD' ? tx.amount * exchangeRate : tx.amount;
 
     if (tx.type === 'income') income += amount;
-
     if (tx.type === 'expense') {
       expenses += amount;
       if (tx.impulse) impulseTotal += amount;
     }
-
     if (tx.type === 'family_support') familySupport += amount;
+    // NOTE: 'bank_fee' is intentionally excluded here to keep lifestyle outflow clean
   });
 
   return {
@@ -133,21 +143,16 @@ export const calculateMonthlySummary = (transactions, monthKey, exchangeRate = 1
   };
 };
 
-// ── Baseline vs Actual (Expenses & Family) ──
+// ─ Baseline vs Actual (Expenses & Family) ──
 export const calculateBaselineVsActual = (baseline, transactions, monthKey, typeFilter) => {
   const actuals = {};
-
-  Object.keys(baseline).forEach((key) => {
-    actuals[key] = 0;
-  });
+  Object.keys(baseline).forEach((key) => { actuals[key] = 0; });
 
   transactions
     .filter((tx) => tx.date.startsWith(monthKey) && tx.type === typeFilter)
     .forEach((tx) => {
       const key = typeFilter === 'expense' ? tx.category : tx.person;
-      if (actuals[key] !== undefined) {
-        actuals[key] += tx.amount;
-      }
+      if (actuals[key] !== undefined) actuals[key] += tx.amount;
     });
 
   return Object.keys(baseline).map((key) => ({
@@ -164,25 +169,18 @@ export const calculateHistoricalTrend = (allTransactions, accounts, exchangeRate
   const trendData = [];
   const today = new Date();
 
-  // Generate the last 6 months (including current month)
   for (let i = 5; i >= 0; i--) {
     const targetDate = new Date(today.getFullYear(), today.getMonth() - i, 1);
     const monthName = targetDate.toLocaleString('default', { month: 'short' });
-
-    // Calculate the last day of this target month
     const lastDayOfMonth = new Date(targetDate.getFullYear(), targetDate.getMonth() + 1, 0);
     const lastDayKey = lastDayOfMonth.toISOString().slice(0, 10);
-
-    // Filter transactions up to the end of this month
+    
     const historicalTxs = allTransactions.filter(tx => tx.date <= lastDayKey);
+    
+    // V2 FIX: Pass the historical date into the math engine so it respects starting_balance_date
+    const snapshot = calculateNetWorth(historicalTxs, accounts || [], exchangeRate, lastDayKey);
 
-    // Pass accounts to calculateNetWorth
-    const snapshot = calculateNetWorth(historicalTxs, accounts || [], exchangeRate);
-
-    trendData.push({
-      month: monthName,
-      value: snapshot.total
-    });
+    trendData.push({ month: monthName, value: snapshot.total });
   }
 
   return trendData;

@@ -25,7 +25,8 @@ export default function NetWorth() {
   const [newAccountForm, setNewAccountForm] = useState({
     name: '',
     currency: 'NGN',
-    starting_balance: ''
+    starting_balance: '',
+    starting_balance_date: new Date().toISOString().slice(0, 10) // V2 UPDATE: Default to today
   });
   const [formError, setFormError] = useState('');
 
@@ -34,6 +35,7 @@ export default function NetWorth() {
     from_account_id: '',
     to_account_id: '',
     amount: '',
+    fee: '', 
     date: new Date().toISOString().slice(0, 10),
     note: '',
     goal_id: ''
@@ -41,13 +43,23 @@ export default function NetWorth() {
   const [transferError, setTransferError] = useState('');
   const [goals, setGoals] = useState([]);
 
+  const [showFeeModal, setShowFeeModal] = useState(false);
+  const [feeForm, setFeeForm] = useState({
+    account_id: '',
+    amount: '',
+    date: new Date().toISOString().slice(0, 10),
+    note: ''
+  });
+  const [feeError, setFeeError] = useState('');
+
   const fetchData = async () => {
     try {
-      const [txs, accountsData, rate, transferTxs] = await Promise.all([
+      const [txs, accountsData, rate, transferTxs, feeTxs] = await Promise.all([
         getTransactions(), 
         getAccounts(),
         getSetting('exchange_rate'),
-        getTransactions({ type: 'transfer' })
+        getTransactions({ type: 'transfer' }),
+        getTransactions({ type: 'bank_fee' }) 
       ]);
       
       const safeAccounts = accountsData || [];
@@ -56,7 +68,9 @@ export default function NetWorth() {
       const calculated = calculateNetWorth(txs, safeAccounts, safeRate);
       setData(calculated);
       setExchangeRate(safeRate);
-      setTransfers(transferTxs);
+      
+      const combined = [...transferTxs, ...feeTxs].sort((a, b) => new Date(b.date) - new Date(a.date));
+      setTransfers(combined);
     } catch (error) {
       console.error("Net Worth fetch failed:", error);
       setData({ total: 0, ngn: 0, usd: 0, accounts: [] });
@@ -64,16 +78,15 @@ export default function NetWorth() {
     }
   };
 
-  useEffect(() => {
-    fetchData();
-  }, []);
+  useEffect(() => { fetchData(); }, []);
 
   const handleOpenAddModal = () => {
     setFormError('');
     setNewAccountForm({
       name: '',
       currency: activeTab === 'usd' ? 'USD' : 'NGN',
-      starting_balance: ''
+      starting_balance: '',
+      starting_balance_date: new Date().toISOString().slice(0, 10) // V2 UPDATE: Reset date
     });
     setShowAddModal(true);
   };
@@ -84,6 +97,7 @@ export default function NetWorth() {
 
     const name = newAccountForm.name.trim();
     const balance = Number(newAccountForm.starting_balance);
+    const date = newAccountForm.starting_balance_date;
 
     if (!name) {
       setFormError('Account name is required.');
@@ -107,7 +121,8 @@ export default function NetWorth() {
       await addAccount({
         name,
         currency: newAccountForm.currency,
-        starting_balance: balance
+        starting_balance: balance,
+        starting_balance_date: date // V2 UPDATE: Pass the date to storage
       });
       
       setShowAddModal(false);
@@ -138,6 +153,7 @@ export default function NetWorth() {
       from_account_id: '',
       to_account_id: '',
       amount: '',
+      fee: '',
       date: new Date().toISOString().slice(0, 10),
       note: '',
       goal_id: ''
@@ -155,6 +171,7 @@ export default function NetWorth() {
     setTransferError('');
 
     const amount = Number(transferForm.amount);
+    const fee = Number(transferForm.fee) || 0;
 
     if (!transferForm.from_account_id) {
       setTransferError('Please select a source account.');
@@ -179,7 +196,6 @@ export default function NetWorth() {
     const fromAcc = data.accounts.find(a => a.id === transferForm.from_account_id);
     const toAcc = data.accounts.find(a => a.id === transferForm.to_account_id);
 
-    // Format the note to show the transfer direction
     const transferNote = transferForm.note 
       ? `${transferForm.note} (${fromAcc.name} → ${toAcc.name})` 
       : `${fromAcc.name} → ${toAcc.name}`;
@@ -191,6 +207,7 @@ export default function NetWorth() {
         account_id: transferForm.from_account_id,
         transfer_to_account_id: transferForm.to_account_id,
         amount,
+        fee, 
         date: transferForm.date,
         note: transferNote,
         goal_id: transferForm.goal_id || null,
@@ -205,6 +222,40 @@ export default function NetWorth() {
     }
   };
 
+  const handleFeeSubmit = async (e) => {
+    e.preventDefault();
+    setFeeError('');
+    const amount = Number(feeForm.amount);
+
+    if (!feeForm.account_id) { 
+      setFeeError('Please select an account.'); 
+      return; 
+    }
+    if (!amount || amount <= 0) { 
+      setFeeError('Amount must be greater than zero.'); 
+      return; 
+    }
+
+    const acc = data.accounts.find(a => a.id === feeForm.account_id);
+
+    try {
+      await addTransaction({
+        type: 'bank_fee',
+        category: 'Bank Fee',
+        account_id: feeForm.account_id,
+        amount,
+        date: feeForm.date,
+        note: feeForm.note || 'Standalone bank charge',
+        currency: acc.currency
+      });
+      setShowFeeModal(false);
+      await fetchData();
+    } catch (err) {
+      console.error("Failed to log fee:", err);
+      setFeeError('Failed to log fee. Please try again.');
+    }
+  };
+
   const handleDeleteTransfer = async (id) => {
     await deleteTransaction(id);
     setTransfers(transfers.filter(t => t.id !== id));
@@ -214,7 +265,6 @@ export default function NetWorth() {
     acc.id !== transferForm.from_account_id
   );
 
-  // Calculate conversion preview for cross-currency transfers
   const fromAccount = data.accounts.find(a => a.id === transferForm.from_account_id);
   const toAccount = data.accounts.find(a => a.id === transferForm.to_account_id);
   const isCrossCurrency = fromAccount && toAccount && fromAccount.currency !== toAccount.currency;
@@ -240,7 +290,7 @@ export default function NetWorth() {
             className={`tab-button ${activeTab === tab ? 'active' : ''}`}
             onClick={() => setActiveTab(tab)}
           >
-            {tab === 'ngn' ? 'NGN' : tab === 'usd' ? 'USD' : tab === 'transfers' ? 'Transfers' : 'Summary'}
+            {tab === 'ngn' ? 'NGN' : tab === 'usd' ? 'USD' : tab === 'transfers' ? 'Transfers & Fees' : 'Summary'}
           </button>
         ))}
       </div>
@@ -335,7 +385,7 @@ export default function NetWorth() {
         <>
           <div className="list-wrap">
             {transfers.length === 0 ? (
-              <p className="hint-text">No transfers logged yet.</p>
+              <p className="hint-text">No transfers or bank fees logged yet.</p>
             ) : (
               transfers.map(tx => (
                 <TransactionRow key={tx.id} transaction={tx} onDelete={handleDeleteTransfer} />
@@ -344,8 +394,16 @@ export default function NetWorth() {
           </div>
 
           <button 
-            className="btn btn-primary" 
+            className="btn btn-outline" 
             style={{ marginTop: 20, width: '100%' }}
+            onClick={() => setShowFeeModal(true)}
+          >
+            ↗ Log Bank Fee
+          </button>
+
+          <button 
+            className="btn btn-primary" 
+            style={{ marginTop: 12, width: '100%' }}
             onClick={handleOpenTransferModal}
           >
             + New Transfer
@@ -388,6 +446,18 @@ export default function NetWorth() {
               <option value="NGN">NGN (₦)</option>
               <option value="USD">USD ($)</option>
             </select>
+          </label>
+
+          {/* V2 UPDATE: Added Account Opened Date */}
+          <label className="form-label">
+            Account Opened Date
+            <input 
+              type="date" 
+              value={newAccountForm.starting_balance_date}
+              onChange={(e) => setNewAccountForm({ ...newAccountForm, starting_balance_date: e.target.value })}
+              className="form-input" 
+              required
+            />
           </label>
 
           <label className="form-label">
@@ -485,6 +555,19 @@ export default function NetWorth() {
           </label>
 
           <label className="form-label">
+            Transfer Fee (Optional)
+            <input 
+              type="number" 
+              value={transferForm.fee}
+              onChange={(e) => setTransferForm({ ...transferForm, fee: e.target.value })}
+              className="form-input" 
+              placeholder="0.00"
+              min="0"
+              step="0.01"
+            />
+          </label>
+
+          <label className="form-label">
             Date
             <input 
               type="date" 
@@ -537,6 +620,87 @@ export default function NetWorth() {
             </button>
             <button type="submit" className="btn btn-primary">
               Transfer
+            </button>
+          </div>
+        </form>
+      </Modal>
+
+      <Modal
+        isOpen={showFeeModal}
+        onClose={() => setShowFeeModal(false)}
+        title="Log Bank Fee"
+      >
+        <form onSubmit={handleFeeSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          
+          {feeError && (
+            <div style={{ color: 'var(--accent-red)', fontSize: 13, background: 'var(--bg-warning)', padding: 10, borderRadius: 4 }}>
+              {feeError}
+            </div>
+          )}
+
+          <label className="form-label">
+            Account
+            <select 
+              value={feeForm.account_id}
+              onChange={(e) => setFeeForm({ ...feeForm, account_id: e.target.value })}
+              className="form-select"
+              required
+            >
+              <option value="">Select account</option>
+              {data.accounts.map(acc => (
+                <option key={acc.id} value={acc.id}>
+                  {acc.name} ({acc.currency === 'NGN' ? formatNaira(acc.balance) : formatUSD(acc.balance)})
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="form-label">
+            Fee Amount
+            <input 
+              type="number" 
+              value={feeForm.amount}
+              onChange={(e) => setFeeForm({ ...feeForm, amount: e.target.value })}
+              className="form-input" 
+              placeholder="0.00"
+              min="0"
+              step="0.01"
+              required
+            />
+          </label>
+
+          <label className="form-label">
+            Date
+            <input 
+              type="date" 
+              value={feeForm.date}
+              onChange={(e) => setFeeForm({ ...feeForm, date: e.target.value })}
+              className="form-input" 
+              required
+            />
+          </label>
+
+          <label className="form-label">
+            Note (Optional)
+            <input 
+              type="text" 
+              value={feeForm.note}
+              onChange={(e) => setFeeForm({ ...feeForm, note: e.target.value })}
+              className="form-input" 
+              placeholder="e.g., Monthly SMS alert fee"
+            />
+          </label>
+
+          <div className="form-actions">
+            <button 
+              type="button" 
+              className="btn btn-ghost" 
+              onClick={() => setShowFeeModal(false)}
+            >
+              Cancel
+            </button>
+            <button type="submit" className="btn btn-primary">
+              Log Fee
             </button>
           </div>
         </form>
