@@ -1,14 +1,15 @@
 import React, { useState, useMemo } from 'react';
-import { formatNaira } from '../lib/format';
+import { formatNaira, formatUSD } from '../lib/format';
 import TransactionRow from './TransactionRow';
 
 export default function LogTab({
-  allTransactions,       // FIX: All transactions for baseline math
-  filteredTransactions,  // FIX: Date-filtered transactions for the list
+  allTransactions,
+  filteredTransactions,
   categories,
   familyTypes = [],
   goals = [],
-  currentMonth,          // FIX: Current selected month
+  accounts = [],         // V2 UPDATE: Added accounts prop
+  currentMonth,
   type,
   onAdd,
   onDelete,
@@ -22,67 +23,51 @@ export default function LogTab({
     date: new Date().toISOString().slice(0, 10),
     note: '',
     impulse: false,
-    goal_id: ''
+    goal_id: '',
+    account_id: ''       // V2 UPDATE: Added account_id to form state
   });
 
-  // FIX: Filter transactions for the current month to calculate Actual vs Baseline
   const monthlyTransactions = useMemo(() => {
     return allTransactions.filter(tx => tx.date.startsWith(currentMonth));
   }, [allTransactions, currentMonth]);
 
   const byCategory = useMemo(() => {
     const map = {};
-    
     categories.forEach(c => {
       map[c.name] = 0;
     });
-    
-    // FIX: Use monthlyTransactions instead of all transactions
     monthlyTransactions.forEach(t => {
       if (map[t.category] !== undefined) {
         map[t.category] += t.amount;
       }
     });
-    
     return map;
   }, [monthlyTransactions, categories]);
 
-  // FIX: Calculate total goal-funded spending for the current month
   const goalFundedTotal = useMemo(() => {
     return monthlyTransactions
       .filter(tx => tx.goal_id)
       .reduce((sum, tx) => sum + tx.amount, 0);
   }, [monthlyTransactions]);
 
-  // FIX: Handle goal selection directly and safely
-  const handleGoalChange = (e) => {
-    const goalId = e.target.value;
-    const selectedGoal = goals.find(g => String(g.id) === String(goalId));
-    
-    setFormData(prev => ({
-      ...prev,
-      goal_id: goalId,
-      amount: selectedGoal && selectedGoal.current > 0 ? String(selectedGoal.current) : ''
-    }));
-  };
-
   const handleSubmit = (e) => {
     e.preventDefault();
-    
     const parsed = Number(formData.amount);
     if (!parsed || parsed <= 0) return;
-
+    
     if (onBeforeAdd) {
       const shouldProceed = onBeforeAdd({ ...formData, amount: parsed });
       if (!shouldProceed) return;
     }
-
+    
+    // V2 UPDATE: Include account_id in the payload
     onAdd({
       ...formData,
       amount: parsed,
       type,
       support_type: formData.support_type || null,
-      goal_id: formData.goal_id || null
+      goal_id: formData.goal_id || null,
+      account_id: formData.account_id || null
     });
     
     setFormData({
@@ -90,22 +75,20 @@ export default function LogTab({
       amount: '',
       note: '',
       support_type: '',
-      goal_id: ''
+      goal_id: '',
+      account_id: ''       // V2 UPDATE: Reset account_id
     });
-    
     setShowForm(false);
   };
 
   return (
     <div className="log-tab">
       <h2 className="section-title">Actual vs. Baseline</h2>
-      
       <div className="list-wrap">
         {categories.map(c => {
           const actual = byCategory[c.name] || 0;
           const base = c.baseline || 0;
           const over = actual > base;
-          
           return (
             <div key={c.name} className="list-row">
               <div className="list-row-content">
@@ -119,8 +102,7 @@ export default function LogTab({
           );
         })}
       </div>
-
-      {/* FIX: Goal Summary Banner */}
+      
       {goalFundedTotal > 0 && (
         <div className="goal-summary-banner">
           🎯 Goal-funded spending this month: {formatNaira(goalFundedTotal)}
@@ -128,13 +110,10 @@ export default function LogTab({
       )}
 
       <h2 className="section-title" style={{ marginTop: 32 }}>Recent Entries</h2>
-      
       <div className="list-wrap">
-        {/* FIX: Check filteredTransactions length instead */}
         {filteredTransactions.length === 0 && (
           <p className="hint-text">Nothing logged in this period.</p>
         )}
-        
         {filteredTransactions.map(tx => (
           <TransactionRow
             key={tx.id}
@@ -161,16 +140,39 @@ export default function LogTab({
             </select>
           </label>
 
-          {/* Pay from Goal Dropdown (Only for expenses) */}
+          {/* V2 UPDATE: New Account Dropdown */}
+          <label className="form-label">
+            Account
+            <select
+              value={formData.account_id}
+              onChange={(e) => setFormData({ ...formData, account_id: e.target.value })}
+              className="form-select"
+              required
+            >
+              <option value="">Select an account</option>
+              {accounts.map(acc => (
+                <option key={acc.id} value={acc.id}>
+                  {acc.name} ({acc.currency === 'NGN' ? formatNaira(acc.balance || acc.starting_balance) : formatUSD(acc.balance || acc.starting_balance)})
+                </option>
+              ))}
+            </select>
+            {accounts.length === 0 && (
+              <span style={{ fontSize: 12, color: 'var(--accent-gold)', marginTop: 4, display: 'block' }}>
+                No accounts found. Go to Net Worth to add one.
+              </span>
+            )}
+          </label>
+
+          {/* V2 UPDATE: Renamed from "Pay from Goal" to "Tag with Goal" */}
           {type === 'expense' && (
             <label className="form-label">
-              Pay from Goal (Optional)
+              Tag with Goal (Optional)
               <select
                 value={formData.goal_id}
-                onChange={handleGoalChange}
+                onChange={(e) => setFormData({ ...formData, goal_id: e.target.value })}
                 className="form-select"
               >
-                <option value="">Main Cash (Default)</option>
+                <option value="">None (Regular expense)</option>
                 {goals
                   .filter((g) => g.current > 0 && !g.is_paid)
                   .map((g) => (
@@ -179,10 +181,12 @@ export default function LogTab({
                     </option>
                   ))}
               </select>
+              <span style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4, display: 'block' }}>
+                Tagging will mark this goal as paid when you save
+              </span>
             </label>
           )}
 
-          {/* NEW: Horizontal Support Type Chips */}
           {type === 'family_support' && familyTypes.length > 0 && (
             <div className="form-label">
               <span>Support Type (Optional)</span>
@@ -210,12 +214,11 @@ export default function LogTab({
               value={formData.amount}
               onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
               className="form-input"
-              readOnly={!!formData.goal_id}
-              placeholder={formData.goal_id ? "Auto-filled from goal" : "Enter amount"}
-              style={formData.goal_id ? { opacity: 0.7, cursor: 'not-allowed' } : {}}
+              placeholder="Enter amount"
+              required
             />
           </label>
-          
+
           <label className="form-label">
             Date
             <input
@@ -226,7 +229,7 @@ export default function LogTab({
               required
             />
           </label>
-          
+
           <label className="form-label">
             Note (optional)
             <input
@@ -236,7 +239,7 @@ export default function LogTab({
               className="form-input"
             />
           </label>
-          
+
           {type === 'expense' && (
             <label className="checkbox-label">
               <input
@@ -247,7 +250,7 @@ export default function LogTab({
               Mark as Impulse Buy
             </label>
           )}
-          
+
           <div className="form-actions">
             <button
               type="button"
@@ -256,10 +259,7 @@ export default function LogTab({
             >
               Cancel
             </button>
-            <button 
-              type="submit" 
-              className="btn btn-primary"
-            >
+            <button type="submit" className="btn btn-primary">
               Log Entry
             </button>
           </div>

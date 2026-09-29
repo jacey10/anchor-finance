@@ -2,19 +2,23 @@ import React, { useState, useEffect } from 'react';
 import { 
   getGoals, addGoal, updateGoal, deleteGoal, addTransaction,
   getWishlistItems, addWishlistItem, updateWishlistItem, deleteWishlistItem,
-  getNotes, addNote, deleteNote
+  getNotes, addNote, deleteNote,
+  getAccounts, getTransactions, getSetting
 } from '../lib/storage';
 import GoalRow from '../components/GoalRow';
 import WishlistRow from '../components/WishlistRow';
 import NoteRow from '../components/NoteRow';
 import Modal from '../components/Modal';
 import ConfirmDialog from '../components/ConfirmDialog';
+import { formatNaira, formatUSD } from '../lib/format';
+import { calculateNetWorth } from '../lib/calculations';
 
 export default function Goals() {
   const [goals, setGoals] = useState([]);
   const [wishlistItems, setWishlistItems] = useState([]);
   const [notes, setNotes] = useState([]);
-  const [activeTab, setActiveTab] = useState('active'); // 'active' | 'completed' | 'wishlist' | 'notes'
+  const [accounts, setAccounts] = useState([]); // Holds accounts WITH calculated balances
+  const [activeTab, setActiveTab] = useState('active');
   
   const [showAddForm, setShowAddForm] = useState(false);
   const [addForm, setAddForm] = useState({ name: '', target: '', deadline: '' });
@@ -25,16 +29,15 @@ export default function Goals() {
   const [showAddNoteForm, setShowAddNoteForm] = useState(false);
   const [newNoteContent, setNewNoteContent] = useState('');
   
-  // Modal States
   const [editingGoal, setEditingGoal] = useState(null);
   const [payingGoal, setPayingGoal] = useState(null);
   const [deletingGoalId, setDeletingGoalId] = useState(null);
   const [deletingWishId, setDeletingWishId] = useState(null);
   const [deletingNoteId, setDeletingNoteId] = useState(null);
   
-  // Form Data for Modals
   const [payForm, setPayForm] = useState({ 
     amount: '', 
+    account_id: '',
     date: new Date().toISOString().slice(0, 10), 
     note: '' 
   });
@@ -48,16 +51,12 @@ export default function Goals() {
     loadGoals(); 
     loadWishlist();
     loadNotes();
+    loadAccounts(); 
   }, []);
 
   const loadGoals = async () => {
     const data = await getGoals();
-    
-    // FIX: Sort goals alphabetically by name (A-Z)
-    const sortedData = [...data].sort((a, b) => {
-      return a.name.localeCompare(b.name);
-    });
-    
+    const sortedData = [...data].sort((a, b) => a.name.localeCompare(b.name));
     setGoals(sortedData);
   };
 
@@ -69,6 +68,23 @@ export default function Goals() {
   const loadNotes = async () => {
     const data = await getNotes();
     setNotes(data);
+  };
+
+  // Load accounts WITH calculated current balances
+  const loadAccounts = async () => {
+    try {
+      const [rawAccounts, transactions, exchangeRate] = await Promise.all([
+        getAccounts(),
+        getTransactions(),
+        getSetting('exchange_rate')
+      ]);
+      
+      const calculatedData = calculateNetWorth(transactions, rawAccounts, exchangeRate || 1);
+      setAccounts(calculatedData.accounts);
+    } catch (error) {
+      console.error("Failed to load accounts with balances:", error);
+      setAccounts([]);
+    }
   };
 
   const handleAdd = async (e) => {
@@ -121,6 +137,7 @@ export default function Goals() {
     const remaining = goal.target - goal.current;
     setPayForm({
       amount: String(remaining > 0 ? remaining : goal.target),
+      account_id: '',
       date: new Date().toISOString().slice(0, 10),
       note: ''
     });
@@ -130,10 +147,8 @@ export default function Goals() {
   const handlePaySubmit = async (e) => {
     e.preventDefault();
     const amount = Number(payForm.amount);
-    if (!amount || amount <= 0) return;
+    if (!amount || amount <= 0 || !payForm.account_id) return;
     
-    // FIX: Changed type to 'goal_transfer' so it doesn't reduce Net Worth.
-    // Added goal_id so deleting the transaction reverses the goal progress.
     await addTransaction({
       type: 'goal_transfer',
       category: 'Goal Payment',
@@ -141,10 +156,10 @@ export default function Goals() {
       date: payForm.date,
       note: payForm.note || `Paid for ${payingGoal.name}`,
       impulse: false,
-      goal_id: payingGoal.id
+      goal_id: payingGoal.id,
+      account_id: payForm.account_id
     });
     
-    // FIX: Cap the progress at the target so the bar can actually reach 100%
     let newCurrent = payingGoal.current + amount;
     if (newCurrent > payingGoal.target) {
       newCurrent = payingGoal.target;
@@ -152,10 +167,12 @@ export default function Goals() {
     
     await updateGoal(payingGoal.id, { current: newCurrent });
     await loadGoals();
+    await loadAccounts(); // Refresh account balances
     
     setPayingGoal(null);
     setPayForm({ 
       amount: '', 
+      account_id: '',
       date: new Date().toISOString().slice(0, 10), 
       note: '' 
     });
@@ -185,7 +202,6 @@ export default function Goals() {
     }
   };
 
-  // FIX: New handlers for marking goals as paid/unpaid
   const handleMarkAsPaid = async (goal) => {
     await updateGoal(goal.id, { is_paid: true });
     await loadGoals();
@@ -206,11 +222,9 @@ export default function Goals() {
     await loadWishlist();
   };
 
-  // FIX: Split goals into two sections based on funding status
   const activeGoals = goals.filter(g => g.current < g.target);
   const completedGoals = goals.filter(g => g.current >= g.target);
 
-  // Split wishlist by status
   const wishingItems = wishlistItems.filter(w => w.status === 'wishing');
   const gotItems = wishlistItems.filter(w => w.status === 'got_it');
 
@@ -219,7 +233,6 @@ export default function Goals() {
       <h1 className="screen-title">Goals</h1>
       <p className="screen-sub">What you're building toward.</p>
       
-      {/* Tab Switcher */}
       <div className="tab-row">
         <button 
           className={`tab-button ${activeTab === 'active' ? 'active' : ''}`}
@@ -247,7 +260,6 @@ export default function Goals() {
         </button>
       </div>
       
-      {/* Active Tab */}
       {activeTab === 'active' && (
         <>
           <h2 className="section-title">Goals in motion</h2>
@@ -322,7 +334,6 @@ export default function Goals() {
         </>
       )}
       
-      {/* Completed Tab */}
       {activeTab === 'completed' && (
         <>
           <h2 className="section-title">Completed goals</h2>
@@ -345,7 +356,6 @@ export default function Goals() {
         </>
       )}
       
-      {/* Wishlist Tab */}
       {activeTab === 'wishlist' && (
         <>
           <h2 className="section-title">What you're wishing for</h2>
@@ -425,7 +435,6 @@ export default function Goals() {
         </>
       )}
       
-      {/* Notes Tab */}
       {activeTab === 'notes' && (
         <>
           <h2 className="section-title">Notes</h2>
@@ -459,7 +468,7 @@ export default function Goals() {
                   onChange={e => setNewNoteContent(e.target.value)}
                   className="form-input"
                   rows={4}
-                  placeholder="e.g. Borrowed ₦20,000 from Chidi, Sept 12"
+                  placeholder="e.g. Borrowed 20,000 from Chidi, Sept 12"
                   required
                   style={{ resize: 'vertical', fontFamily: 'inherit' }}
                 />
@@ -481,7 +490,6 @@ export default function Goals() {
         </>
       )}
 
-      {/* Edit Modal */}
       <Modal isOpen={!!editingGoal} onClose={() => setEditingGoal(null)} title="Edit Goal">
         <form onSubmit={handleEditSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
           <label className="form-label">
@@ -528,7 +536,6 @@ export default function Goals() {
         </form>
       </Modal>
 
-      {/* Pay Modal */}
       <Modal isOpen={!!payingGoal} onClose={() => setPayingGoal(null)} title={`Pay towards ${payingGoal?.name}`}>
         <form onSubmit={handlePaySubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
           <p style={{ color: 'var(--text-muted)', fontSize: '13px', marginBottom: '8px' }}>
@@ -544,6 +551,29 @@ export default function Goals() {
               required 
             />
           </label>
+          
+          <label className="form-label">
+            Pay From Account
+            <select
+              value={payForm.account_id}
+              onChange={(e) => setPayForm({ ...payForm, account_id: e.target.value })}
+              className="form-select"
+              required
+            >
+              <option value="">Select an account</option>
+              {accounts.map(acc => (
+                <option key={acc.id} value={acc.id}>
+                  {acc.name} ({acc.currency === 'NGN' ? `₦${Number(acc.balance).toLocaleString()}` : `$${Number(acc.balance).toLocaleString()}`})
+                </option>
+              ))}
+            </select>
+            {accounts.length === 0 && (
+              <span style={{ fontSize: 12, color: 'var(--accent-gold)', marginTop: 4, display: 'block' }}>
+                No accounts found. Go to Net Worth to add one.
+              </span>
+            )}
+          </label>
+          
           <label className="form-label">
             Date
             <input 
@@ -579,7 +609,6 @@ export default function Goals() {
         </form>
       </Modal>
 
-      {/* Delete Confirmation Dialogs */}
       <ConfirmDialog 
         isOpen={!!deletingGoalId} 
         onClose={() => setDeletingGoalId(null)} 

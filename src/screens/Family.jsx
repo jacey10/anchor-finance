@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { getPeople, getTransactions, addTransaction, deleteTransaction } from '../lib/storage';
+import { getPeople, getTransactions, addTransaction, deleteTransaction, getAccounts } from '../lib/storage'; // V2 UPDATE: Added getAccounts
 import BaselineTab from '../components/BaselineTab';
 import LogTab from '../components/LogTab';
 import OverageWarning from '../components/OverageWarning';
@@ -8,32 +8,35 @@ import OverageWarning from '../components/OverageWarning';
 export default function Family() {
   const [tab, setTab] = useState('budget');
   const [people, setPeople] = useState([]);
-  const [familyTypes, setFamilyTypes] = useState([]); // NEW: State for support types
+  const [familyTypes, setFamilyTypes] = useState([]);
   const [transactions, setTransactions] = useState([]);
+  const [accounts, setAccounts] = useState([]); // V2 UPDATE: Added accounts state
   const [warning, setWarning] = useState(null);
   const [pendingTx, setPendingTx] = useState(null);
-  const [loading, setLoading] = useState(true); // Added loading state
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const loadData = async () => {
-      setLoading(true); // Start loading
+      setLoading(true);
       
-      const [ppl, txs, { data: typesData }] = await Promise.all([
+      // V2 UPDATE: Fetch accounts alongside other data
+      const [ppl, txs, accs, { data: typesData }] = await Promise.all([
         getPeople(),
         getTransactions({ type: 'family_support' }),
-        supabase.from('family_types').select('*').order('name') // NEW: Fetch types
+        getAccounts(),
+        supabase.from('family_types').select('*').order('name')
       ]);
       
       setPeople(ppl);
       setTransactions(txs);
-      setFamilyTypes(typesData || []); // NEW: Set types
-      setLoading(false); // Stop loading
+      setAccounts(accs); // V2 UPDATE: Set accounts
+      setFamilyTypes(typesData || []);
+      setLoading(false);
     };
     
     loadData();
   }, []);
 
-  // Function to add a new family member
   const handleAddFirstMember = async () => {
     const name = prompt('Enter the name of the family member:');
     if (!name || name.trim() === '') return;
@@ -59,7 +62,6 @@ export default function Family() {
       return;
     }
     
-    // Refresh the list
     const updatedPeople = await getPeople();
     setPeople(updatedPeople);
   };
@@ -78,7 +80,6 @@ export default function Family() {
       return;
     }
     
-    // Refresh the list
     const updatedPeople = await getPeople();
     setPeople(updatedPeople);
   };
@@ -118,7 +119,6 @@ export default function Family() {
     
     const { data: { user } } = await supabase.auth.getUser();
     
-    // Delete from Supabase
     const { error } = await supabase
       .from('people')
       .delete()
@@ -130,7 +130,6 @@ export default function Family() {
       return;
     }
     
-    // Refresh the list
     const updatedPeople = await getPeople();
     setPeople(updatedPeople);
   };
@@ -151,7 +150,6 @@ export default function Family() {
     setTransactions(newTxs);
   };
 
-  // 1. Show Loading Spinner (Prevents the flash)
   if (loading) {
     return (
       <div className="screen">
@@ -163,14 +161,13 @@ export default function Family() {
     );
   }
 
-  // 2. Show Empty State (Only if loading is done and no people exist)
   if (people.length === 0) {
     return (
       <div className="screen">
         <h1 className="screen-title">Family Support</h1>
         <p className="screen-sub">What you can give this month, by person.</p>
         <div className="empty-state">
-          <div className="empty-icon">👨‍👧</div>
+          <div className="empty-icon">👨‍</div>
           <h3 className="empty-title">No family members added yet</h3>
           <p className="empty-subtitle">
             Use this space to track financial support for parents, siblings, or children. 
@@ -187,7 +184,6 @@ export default function Family() {
     );
   }
 
-  // 3. Show Normal Content
   return (
     <div className="screen">
       <div className="section-header">
@@ -229,21 +225,20 @@ export default function Family() {
           />
         </div>
       ) : (
-        
         <LogTab 
           allTransactions={transactions}
           filteredTransactions={transactions} 
-          currentMonth={new Date().toISOString().slice(0, 7)} // e.g., "2026-09"
+          currentMonth={new Date().toISOString().slice(0, 7)}
           categories={people.map(p => ({ name: p.name, baseline: p.budget }))} 
           familyTypes={familyTypes} 
-          goals={[]} // LogTab expects this, even if empty
+          goals={[]}
+          accounts={accounts} // V2 UPDATE: Pass accounts to LogTab
           type="family_support" 
           onAdd={handleAdd} 
           onDelete={handleDelete}
           onBeforeAdd={handleBeforeAdd}
         />
       )}
-      
 
       {warning && (
         <OverageWarning 

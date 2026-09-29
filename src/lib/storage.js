@@ -6,7 +6,7 @@ const getUserId = async () => {
   return user?.id;
 };
 
-// ── Settings (Starting Balance & Exchange Rate) ─
+// ── Settings (Exchange Rate) ──
 export const getSetting = async (key) => {
   const userId = await getUserId();
   if (!userId) return 0;
@@ -18,7 +18,6 @@ export const getSetting = async (key) => {
     .eq('user_id', userId)
     .single();
     
-  // PGRST116 is the error code for "no rows found". We return 0 instead of crashing.
   if (error && error.code !== 'PGRST116') throw error;
   return data ? parseFloat(data.value) : 0;
 };
@@ -34,7 +33,54 @@ export const updateSetting = async (key, value) => {
   if (error) throw error;
 };
 
-// ── Transactions (Income, Expenses, Family Support) ──
+// ── Accounts (V2 Addition) ──
+export const getAccounts = async () => {
+  const userId = await getUserId();
+  // FIX: Removed 'balance' from select because it doesn't exist in the schema.
+  // We only need 'starting_balance', and the math engine calculates the live balance.
+  const { data, error } = await supabase
+    .from('accounts')
+    .select('id, name, currency, starting_balance, created_at')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: true });
+    
+  if (error) throw error;
+  
+  // Normalize data: ensure starting_balance is a number
+  return (data || []).map(acc => ({
+    ...acc,
+    starting_balance: Number(acc.starting_balance) || 0
+  }));
+};
+
+export const addAccount = async (account) => {
+  const userId = await getUserId();
+  const { data, error } = await supabase
+    .from('accounts')
+    .insert([{ 
+      user_id: userId, 
+      name: account.name, 
+      currency: account.currency || 'NGN', 
+      // Explicitly cast to Number to prevent string-to-0 coercion issues
+      starting_balance: Number(account.starting_balance) || 0 
+    }])
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+};
+
+export const updateAccount = async (id, updates) => {
+  const { error } = await supabase.from('accounts').update(updates).eq('id', id);
+  if (error) throw error;
+};
+
+export const deleteAccount = async (id) => {
+  const { error } = await supabase.from('accounts').delete().eq('id', id);
+  if (error) throw error;
+};
+
+// ── Transactions ──
 export const getTransactions = async (filters = {}) => {
   const userId = await getUserId();
   let query = supabase.from('transactions').select('*').eq('user_id', userId).order('date', { ascending: false });
@@ -53,7 +99,7 @@ export const addTransaction = async (tx) => {
   const { data, error } = await supabase
     .from('transactions')
     .insert([{
-      user_id: userId, // CRITICAL FIX
+      user_id: userId,
       type: tx.type,
       source: tx.source || null,
       category: tx.category || null,
@@ -65,12 +111,35 @@ export const addTransaction = async (tx) => {
       date: tx.date,
       recurring: tx.recurring || false,
       impulse: tx.impulse || false,
-      goal_id: tx.goal_id || null
+      goal_id: tx.goal_id || null,
+      account_id: tx.account_id || null,
+      transfer_to_account_id: tx.transfer_to_account_id || null
     }])
     .select()
     .single();
     
   if (error) throw error;
+
+  // V2 UPDATE: If this is a transfer tagged with a goal, update the goal's progress atomically
+  if (tx.type === 'transfer' && tx.goal_id) {
+    const { data: goal, error: goalFetchError } = await supabase
+      .from('goals')
+      .select('current')
+      .eq('id', tx.goal_id)
+      .single();
+      
+    if (goalFetchError && goalFetchError.code !== 'PGRST116') throw goalFetchError;
+    
+    if (goal) {
+      const newCurrent = (goal.current || 0) + tx.amount;
+      const { error: goalUpdateError } = await supabase
+        .from('goals')
+        .update({ current: newCurrent })
+        .eq('id', tx.goal_id);
+      if (goalUpdateError) throw goalUpdateError;
+    }
+  }
+
   return data;
 };
 
@@ -80,9 +149,6 @@ export const updateTransaction = async (id, updates) => {
 };
 
 export const deleteTransaction = async (id) => {
-  // FIX: If this transaction is a Goal Payment (has a goal_id), we need to
-  // reverse its effect on that goal's progress before deleting it. Otherwise
-  // the goal's progress bar stays overstated after the payment is gone.
   const { data: tx, error: fetchError } = await supabase
     .from('transactions')
     .select('goal_id, amount')
@@ -98,19 +164,14 @@ export const deleteTransaction = async (id) => {
       .eq('id', tx.goal_id)
       .single();
       
-    // PGRST116 = goal already deleted separately; nothing to reverse in that case.
     if (goalFetchError && goalFetchError.code !== 'PGRST116') throw goalFetchError;
     
     if (goal) {
-      // Don't let progress go below 0 (e.g. if current was reset to 0 on a
-      // fully-paid goal and an older partial payment is deleted afterward).
       const newCurrent = Math.max(0, goal.current - tx.amount);
-      
       const { error: goalUpdateError } = await supabase
         .from('goals')
         .update({ current: newCurrent })
         .eq('id', tx.goal_id);
-        
       if (goalUpdateError) throw goalUpdateError;
     }
   }
@@ -129,7 +190,6 @@ export const getGoals = async () => {
 
 export const addGoal = async (goal) => {
   const userId = await getUserId();
-  
   const { data, error } = await supabase
     .from('goals')
     .insert([{ 
@@ -141,7 +201,6 @@ export const addGoal = async (goal) => {
     }])
     .select()
     .single();
-    
   if (error) throw error;
   return data;
 };
@@ -152,9 +211,6 @@ export const updateGoal = async (id, updates) => {
 };
 
 export const deleteGoal = async (id) => {
-  // FIX: Removed the cascading delete of transactions.
-  // We want to preserve the financial history of goal payments.
-  // Deleting a goal only removes the tracker, not the historical money movement.
   const { error } = await supabase.from('goals').delete().eq('id', id);
   if (error) throw error;
 };
@@ -169,18 +225,11 @@ export const getWishlistItems = async () => {
 
 export const addWishlistItem = async (item) => {
   const userId = await getUserId();
-  
   const { data, error } = await supabase
     .from('wishlist_items')
-    .insert([{ 
-      user_id: userId, 
-      name: item.name, 
-      note: item.note || null,
-      status: 'wishing'
-    }])
+    .insert([{ user_id: userId, name: item.name, note: item.note || null, status: 'wishing' }])
     .select()
     .single();
-    
   if (error) throw error;
   return data;
 };
@@ -205,13 +254,7 @@ export const getNotes = async () => {
 
 export const addNote = async (content) => {
   const userId = await getUserId();
-  
-  const { data, error } = await supabase
-    .from('notes')
-    .insert([{ user_id: userId, content }])
-    .select()
-    .single();
-    
+  const { data, error } = await supabase.from('notes').insert([{ user_id: userId, content }]).select().single();
   if (error) throw error;
   return data;
 };

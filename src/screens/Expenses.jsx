@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { 
-  getCategories, 
-  getTransactions, 
-  addTransaction, 
-  deleteTransaction, 
-  getGoals, 
-  updateGoal 
+import {
+  getCategories,
+  getTransactions,
+  addTransaction,
+  deleteTransaction,
+  getGoals,
+  updateGoal,
+  getAccounts // V2 UPDATE: Added getAccounts
 } from '../lib/storage';
 import { formatNaira } from '../lib/format';
 import BaselineTab from '../components/BaselineTab';
@@ -18,23 +19,24 @@ export default function Expenses() {
   const [categories, setCategories] = useState([]);
   const [transactions, setTransactions] = useState([]);
   const [goals, setGoals] = useState([]);
+  const [accounts, setAccounts] = useState([]); // V2 UPDATE: Added accounts state
   
-  // Month picker state
   const [currentMonth, setCurrentMonth] = useState(new Date().toISOString().slice(0, 7));
-  
-  // Date filter state
   const [dateFilter, setDateFilter] = useState({ start: '', end: '' });
 
   useEffect(() => {
     const loadData = async () => {
-      const [cats, txs, g] = await Promise.all([
-        getCategories(), 
+      // V2 UPDATE: Fetch accounts alongside other data
+      const [cats, txs, g, accs] = await Promise.all([
+        getCategories(),
         getTransactions({ type: 'expense' }),
-        getGoals()
+        getGoals(),
+        getAccounts()
       ]);
       setCategories(cats);
       setTransactions(txs);
       setGoals(g);
+      setAccounts(accs);
     };
     loadData();
   }, []);
@@ -42,14 +44,11 @@ export default function Expenses() {
   const handleAddCategory = async () => {
     const name = prompt('Enter new expense category name (e.g., Groceries, Transport):');
     if (!name || name.trim() === '') return;
-
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
-
     const { error } = await supabase
       .from('categories')
       .insert([{ name: name.trim(), user_id: user.id, baseline: 0 }]);
-
     if (error) { alert('Error adding category: ' + error.message); return; }
     setCategories(await getCategories()); 
   };
@@ -59,11 +58,12 @@ export default function Expenses() {
     const { data: { user } } = await supabase.auth.getUser();
     const { error } = await supabase.from('categories').delete().eq('name', name).eq('user_id', user.id);
     if (error) { alert('Error deleting category: ' + error.message); return; }
-    setCategories(await getCategories()); 
+    setCategories(await getCategories());
   };
 
   const handleAdd = async (tx) => {
     await addTransaction({ ...tx, type: 'expense' });
+    // V2 UPDATE: When expense is tagged with goal, mark goal as paid
     if (tx.goal_id) { await updateGoal(tx.goal_id, { is_paid: true }); }
     const [newTxs, newGoals] = await Promise.all([getTransactions({ type: 'expense' }), getGoals()]);
     setTransactions(newTxs);
@@ -83,7 +83,6 @@ export default function Expenses() {
     if (error) { console.error('Error updating baseline:', error.message); alert('Failed to save budget to database.'); }
   };
 
-  // Filter transactions by date range (ONLY for the Recent Entries list)
   const filteredTransactions = transactions.filter(tx => {
     if (!dateFilter.start && !dateFilter.end) return true;
     const txDate = new Date(tx.date);
@@ -96,15 +95,14 @@ export default function Expenses() {
     <div className="screen">
       <h1 className="screen-title">Expenses</h1>
       <p className="screen-sub">Your floor, and what actually happened.</p>
-
+      
       <div className="tab-row">
         <button className={`tab-button ${tab === 'baseline' ? 'active' : ''}`} onClick={() => setTab('baseline')}>Baseline</button>
         <button className={`tab-button ${tab === 'log' ? 'active' : ''}`} onClick={() => setTab('log')}>Log</button>
       </div>
-
-      {/* Month Picker controls the Budget Math */}
+      
       <MonthPicker currentMonth={currentMonth} onChange={setCurrentMonth} />
-
+      
       {tab === 'baseline' ? (
         <BaselineTab 
           items={categories.map(c => ({ key: c.name, name: c.name, value: c.baseline || 0 }))} 
@@ -117,7 +115,6 @@ export default function Expenses() {
         />
       ) : (
         <div>
-          {/* Date Range Filter (Controls ONLY the Recent Entries list) */}
           <div className="form-card" style={{ marginBottom: 20, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-end', gap: 12 }}>
             <label className="form-label" style={{ flex: 1, minWidth: 120 }}>
               Date From
@@ -129,12 +126,14 @@ export default function Expenses() {
             </label>
             <button className="btn btn-ghost" onClick={() => setDateFilter({ start: '', end: '' })} style={{ height: 42 }}>Clear Filter</button>
           </div>
-
+          
+          {/* V2 UPDATE: Pass accounts down to LogTab */}
           <LogTab 
             allTransactions={transactions} 
             filteredTransactions={filteredTransactions} 
             categories={categories} 
             goals={goals}
+            accounts={accounts}
             currentMonth={currentMonth}
             type="expense" 
             onAdd={handleAdd} 

@@ -1,18 +1,18 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   LineChart, Line, ResponsiveContainer, XAxis, YAxis, Tooltip,
   PieChart, Pie, Cell
 } from 'recharts';
 
 import {
-  getTransactions, getGoals, getSetting, updateGoal, addTransaction
+  getTransactions, getGoals, getSetting, updateGoal, addTransaction, getAccounts
 } from '../lib/storage';
 
 import {
-  calculateNetWorth, calculateMonthlySummary
+  calculateNetWorth, calculateMonthlySummary, calculateAvailableToSpend, calculateHistoricalTrend
 } from '../lib/calculations';
 
-import { formatNaira } from '../lib/format';
+import { formatNaira, formatUSD } from '../lib/format';
 import GoalRow from '../components/GoalRow';
 import Modal from '../components/Modal';
 import ImpulseInsight from '../components/ImpulseInsight';
@@ -22,37 +22,6 @@ const COLORS = [
   '#B8935F', '#8FA98A', '#5A7F9F', '#B87C6B',
   '#9F8FA9', '#7FA9BF', '#D4A373', '#A98FA9'
 ];
-
-// ─────────────────────────────────────────────
-// HISTORICAL TREND CALCULATION
-// ─────────────────────────────────────────────
-const calculateHistoricalTrend = (allTransactions, exchangeRate) => {
-  const trendData = [];
-  const today = new Date();
-  
-  // Generate the last 6 months (including current month)
-  for (let i = 5; i >= 0; i--) {
-    const targetDate = new Date(today.getFullYear(), today.getMonth() - i, 1);
-    const monthName = targetDate.toLocaleString('default', { month: 'short' });
-    
-    // Calculate the last day of this target month
-    const lastDayOfMonth = new Date(targetDate.getFullYear(), targetDate.getMonth() + 1, 0);
-    const lastDayKey = lastDayOfMonth.toISOString().slice(0, 10);
-
-    // Filter transactions up to the end of this month
-    const historicalTxs = allTransactions.filter(tx => tx.date <= lastDayKey);
-
-    // Calculate Net Worth for this snapshot
-    const snapshot = calculateNetWorth(historicalTxs, exchangeRate);
-
-    trendData.push({
-      month: monthName,
-      value: snapshot.total
-    });
-  }
-  
-  return trendData;
-};
 
 export default function Dashboard() {
   const [data, setData] = useState({
@@ -67,9 +36,11 @@ export default function Dashboard() {
     expenseBreakdown: [],
     monthlyChange: 0,
     percentageChange: 0,
-    trend: []
+    trend: [],
+    accounts: []
   });
 
+  const [rawData, setRawData] = useState({ transactions: [], accounts: [], exchangeRate: 1 });
   const [loading, setLoading] = useState(true);
   const [currentMonth, setCurrentMonth] = useState(new Date().toISOString().slice(0, 7));
   const [payingGoal, setPayingGoal] = useState(null);
@@ -78,6 +49,7 @@ export default function Dashboard() {
 
   const [payForm, setPayForm] = useState({
     amount: '',
+    account_id: '',
     date: new Date().toISOString().slice(0, 10),
     note: ''
   });
@@ -88,43 +60,112 @@ export default function Dashboard() {
     deadline: ''
   });
 
-  // ─────────────────────────────────────────────
-  // LOAD DASHBOARD DATA
-  // ─────────────────────────────────────────────
+  const trendData = useMemo(() => {
+    return calculateHistoricalTrend(rawData.transactions, rawData.accounts, rawData.exchangeRate);
+  }, [rawData.transactions, rawData.accounts, rawData.exchangeRate]);
+
   useEffect(() => {
     const loadData = async () => {
-      // REMOVED: starting_balance and usd_holdings
-      const [transactions, goals, exchangeRate, impulseBudget] = await Promise.all([
+      try {
+        const [transactions, goals, accounts, rate, impulseBudget] = await Promise.all([
+          getTransactions(),
+          getGoals(),
+          getAccounts(),
+          getSetting('exchange_rate'),
+          getSetting('impulse_budget')
+        ]);
+
+        const safeRate = rate || 1;
+        setRawData({ transactions, accounts: accounts || [], exchangeRate: safeRate });
+
+        const prevMonthDate = new Date(`${currentMonth}-01`);
+        prevMonthDate.setMonth(prevMonthDate.getMonth() - 1);
+        const prevMonthKey = prevMonthDate.toISOString().slice(0, 7);
+
+        const currentMonthTxs = transactions.filter((tx) => tx.date.startsWith(currentMonth));
+        const prevMonthTxs = transactions.filter((tx) => tx.date.startsWith(prevMonthKey));
+
+        const summary = calculateMonthlySummary(currentMonthTxs, currentMonth, safeRate);
+        const prevSummary = calculateMonthlySummary(prevMonthTxs, prevMonthKey, safeRate);
+        
+        // calculateNetWorth returns accounts with their LIVE calculated balances
+        const netWorthData = calculateNetWorth(transactions, accounts || [], safeRate);
+        const availableBalance = calculateAvailableToSpend(netWorthData, goals);
+
+        const currentDelta = summary.income - summary.totalOutflow;
+        const prevDelta = prevSummary.income - prevSummary.totalOutflow;
+
+        let percentageChange = 0;
+        if (prevDelta !== 0) {
+          percentageChange = ((currentDelta - prevDelta) / Math.abs(prevDelta)) * 100;
+        }
+
+        const breakdownMap = {};
+        currentMonthTxs
+          .filter((tx) => tx.type === 'expense' || tx.type === 'family_support')
+          .forEach((tx) => {
+            const category = tx.category || tx.person || 'Other';
+            const amount = tx.currency === 'USD' ? tx.amount * safeRate : tx.amount;
+            breakdownMap[category] = (breakdownMap[category] || 0) + amount;
+          });
+
+        const expenseBreakdown = Object.entries(breakdownMap).map(([name, value]) => ({
+          name,
+          value
+        }));
+
+        setData({
+          netWorth: netWorthData.total,
+          availableBalance,
+          income: summary.income,
+          expenses: summary.totalOutflow,
+          impulseTotal: summary.impulseTotal,
+          impulsePercentage: summary.impulsePercentage,
+          impulseBudget,
+          goals,
+          expenseBreakdown,
+          monthlyChange: currentDelta,
+          percentageChange,
+          trend: trendData,
+          accounts: netWorthData.accounts // Store accounts with LIVE balances
+        });
+
+      } catch (error) {
+        console.error("Dashboard failed to load data:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadData();
+  }, [currentMonth, trendData]);
+
+  const refreshData = async () => {
+    try {
+      const [transactions, goals, accounts, rate, impulseBudget] = await Promise.all([
         getTransactions(),
         getGoals(),
+        getAccounts(),
         getSetting('exchange_rate'),
         getSetting('impulse_budget')
       ]);
 
-      // Calculate previous month
+      const safeRate = rate || 1;
+      setRawData({ transactions, accounts: accounts || [], exchangeRate: safeRate });
+
+      const netWorthData = calculateNetWorth(transactions, accounts || [], safeRate);
+      const availableBalance = calculateAvailableToSpend(netWorthData, goals);
+
       const prevMonthDate = new Date(`${currentMonth}-01`);
       prevMonthDate.setMonth(prevMonthDate.getMonth() - 1);
       const prevMonthKey = prevMonthDate.toISOString().slice(0, 7);
 
-      // Filter transactions
       const currentMonthTxs = transactions.filter((tx) => tx.date.startsWith(currentMonth));
       const prevMonthTxs = transactions.filter((tx) => tx.date.startsWith(prevMonthKey));
 
-      // Monthly summaries
-      const summary = calculateMonthlySummary(currentMonthTxs, currentMonth, exchangeRate);
-      const prevSummary = calculateMonthlySummary(prevMonthTxs, prevMonthKey, exchangeRate);
+      const summary = calculateMonthlySummary(currentMonthTxs, currentMonth, safeRate);
+      const prevSummary = calculateMonthlySummary(prevMonthTxs, prevMonthKey, safeRate);
 
-      // Net worth (Removed startingBalance argument)
-      const netWorthData = calculateNetWorth(transactions, exchangeRate);
-
-      // Available balance
-      const totalLockedInGoals = goals
-        .filter((goal) => !goal.is_paid)
-        .reduce((sum, goal) => sum + (goal.current || 0), 0);
-
-      const availableBalance = netWorthData.total - totalLockedInGoals;
-
-      // Monthly change
       const currentDelta = summary.income - summary.totalOutflow;
       const prevDelta = prevSummary.income - prevSummary.totalOutflow;
 
@@ -133,13 +174,12 @@ export default function Dashboard() {
         percentageChange = ((currentDelta - prevDelta) / Math.abs(prevDelta)) * 100;
       }
 
-      // Expense breakdown
       const breakdownMap = {};
       currentMonthTxs
         .filter((tx) => tx.type === 'expense' || tx.type === 'family_support')
         .forEach((tx) => {
           const category = tx.category || tx.person || 'Other';
-          const amount = tx.currency === 'USD' ? tx.amount * exchangeRate : tx.amount;
+          const amount = tx.currency === 'USD' ? tx.amount * safeRate : tx.amount;
           breakdownMap[category] = (breakdownMap[category] || 0) + amount;
         });
 
@@ -148,10 +188,10 @@ export default function Dashboard() {
         value
       }));
 
-      // Calculate real historical trend
-      const realTrend = calculateHistoricalTrend(transactions, exchangeRate);
-
-      setData({
+      setData((prev) => ({
+        ...prev,
+        goals,
+        accounts: netWorthData.accounts, // Update accounts with LIVE balances
         netWorth: netWorthData.total,
         availableBalance,
         income: summary.income,
@@ -159,106 +199,20 @@ export default function Dashboard() {
         impulseTotal: summary.impulseTotal,
         impulsePercentage: summary.impulsePercentage,
         impulseBudget,
-        goals,
         expenseBreakdown,
         monthlyChange: currentDelta,
         percentageChange,
-        trend: realTrend
-      });
-
-      setLoading(false);
-    };
-
-    loadData();
-  }, [currentMonth]);
-
-  // ─────────────────────────────────────────────
-  // REFRESH DATA
-  // ─────────────────────────────────────────────
-  const refreshData = async () => {
-    const goals = await getGoals();
-    const transactions = await getTransactions();
-
-    // REMOVED: starting_balance and usd_holdings
-    const [exchangeRate, impulseBudget] = await Promise.all([
-      getSetting('exchange_rate'),
-      getSetting('impulse_budget')
-    ]);
-
-    // Net worth (Removed startingBalance argument)
-    const netWorthData = calculateNetWorth(transactions, exchangeRate);
-
-    // Available balance
-    const totalLockedInGoals = goals
-      .filter((goal) => !goal.is_paid)
-      .reduce((sum, goal) => sum + (goal.current || 0), 0);
-
-    const availableBalance = netWorthData.total - totalLockedInGoals;
-
-    // Previous month
-    const prevMonthDate = new Date(`${currentMonth}-01`);
-    prevMonthDate.setMonth(prevMonthDate.getMonth() - 1);
-    const prevMonthKey = prevMonthDate.toISOString().slice(0, 7);
-
-    // Filter transactions
-    const currentMonthTxs = transactions.filter((tx) => tx.date.startsWith(currentMonth));
-    const prevMonthTxs = transactions.filter((tx) => tx.date.startsWith(prevMonthKey));
-
-    // Monthly summaries
-    const summary = calculateMonthlySummary(currentMonthTxs, currentMonth, exchangeRate);
-    const prevSummary = calculateMonthlySummary(prevMonthTxs, prevMonthKey, exchangeRate);
-
-    // Monthly change
-    const currentDelta = summary.income - summary.totalOutflow;
-    const prevDelta = prevSummary.income - prevSummary.totalOutflow;
-
-    let percentageChange = 0;
-    if (prevDelta !== 0) {
-      percentageChange = ((currentDelta - prevDelta) / Math.abs(prevDelta)) * 100;
+        trend: trendData
+      }));
+    } catch (error) {
+      console.error("Dashboard failed to refresh data:", error);
     }
-
-    // Expense breakdown
-    const breakdownMap = {};
-    currentMonthTxs
-      .filter((tx) => tx.type === 'expense' || tx.type === 'family_support')
-      .forEach((tx) => {
-        const category = tx.category || tx.person || 'Other';
-        const amount = tx.currency === 'USD' ? tx.amount * exchangeRate : tx.amount;
-        breakdownMap[category] = (breakdownMap[category] || 0) + amount;
-      });
-
-    const expenseBreakdown = Object.entries(breakdownMap).map(([name, value]) => ({
-      name,
-      value
-    }));
-
-    // Calculate real historical trend
-    const realTrend = calculateHistoricalTrend(transactions, exchangeRate);
-
-    setData((prev) => ({
-      ...prev,
-      goals,
-      netWorth: netWorthData.total,
-      availableBalance,
-      income: summary.income,
-      expenses: summary.totalOutflow,
-      impulseTotal: summary.impulseTotal,
-      impulsePercentage: summary.impulsePercentage,
-      impulseBudget,
-      expenseBreakdown,
-      monthlyChange: currentDelta,
-      percentageChange,
-      trend: realTrend
-    }));
   };
 
-  // ─────────────────────────────────────────────
-  // PAY GOAL
-  // ─────────────────────────────────────────────
   const handlePaySubmit = async (e) => {
     e.preventDefault();
     const amount = Number(payForm.amount);
-    if (!amount || amount <= 0 || !payingGoal) return;
+    if (!amount || amount <= 0 || !payingGoal || !payForm.account_id) return;
 
     await addTransaction({
       type: 'goal_transfer',
@@ -267,7 +221,8 @@ export default function Dashboard() {
       date: payForm.date,
       note: payForm.note || `Paid for ${payingGoal.name}`,
       impulse: false,
-      goal_id: payingGoal.id
+      goal_id: payingGoal.id,
+      account_id: payForm.account_id
     });
 
     let newCurrent = payingGoal.current + amount;
@@ -281,14 +236,12 @@ export default function Dashboard() {
     setPayingGoal(null);
     setPayForm({
       amount: '',
+      account_id: '',
       date: new Date().toISOString().slice(0, 10),
       note: ''
     });
   };
 
-  // ─────────────────────────────────────────────
-  // EDIT GOAL
-  // ─────────────────────────────────────────────
   const handleEditSubmit = async (e) => {
     e.preventDefault();
     await updateGoal(editingGoal.id, {
@@ -300,9 +253,6 @@ export default function Dashboard() {
     setEditingGoal(null);
   };
 
-  // ─────────────────────────────────────────────
-  // ACTIVE GOALS
-  // ─────────────────────────────────────────────
   const activeGoals = data.goals.filter((goal) => goal.current < goal.target);
   const sortedActiveGoals = [...activeGoals].sort((a, b) => {
     if (!a.deadline && !b.deadline) return 0;
@@ -315,9 +265,6 @@ export default function Dashboard() {
     return <div className="loading">Loading your finances...</div>;
   }
 
-  // ─────────────────────────────────────────────
-  // RENDER
-  // ─────────────────────────────────────────────
   return (
     <div className="screen">
       <MonthPicker 
@@ -462,6 +409,7 @@ export default function Dashboard() {
                 const remaining = selectedGoal.target - selectedGoal.current;
                 setPayForm({
                   amount: String(remaining > 0 ? remaining : selectedGoal.target),
+                  account_id: '',
                   date: new Date().toISOString().slice(0, 10),
                   note: ''
                 });
@@ -531,6 +479,24 @@ export default function Dashboard() {
               required
             />
           </label>
+
+          <label className="form-label">
+            Pay From Account
+            <select
+              value={payForm.account_id}
+              onChange={(e) => setPayForm({ ...payForm, account_id: e.target.value })}
+              className="form-select"
+              required
+            >
+              <option value="">Select an account</option>
+              {data.accounts.map(acc => (
+                <option key={acc.id} value={acc.id}>
+                  {acc.name} ({acc.currency === 'NGN' ? `₦${Number(acc.balance).toLocaleString()}` : `$${Number(acc.balance).toLocaleString()}`})
+                </option>
+              ))}
+            </select>
+          </label>
+
           <label className="form-label">
             Date
             <input
@@ -541,6 +507,7 @@ export default function Dashboard() {
               required
             />
           </label>
+
           <label className="form-label">
             Note
             <input
@@ -550,6 +517,7 @@ export default function Dashboard() {
               className="form-input"
             />
           </label>
+
           <div className="form-actions">
             <button
               type="button"

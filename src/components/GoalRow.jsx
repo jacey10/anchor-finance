@@ -56,7 +56,7 @@ export default function GoalRow({
           className="btn-link" 
           onClick={() => onPay(goal)}
         >
-          Pay for goal
+          Pay towards Goal
         </button>
         
         <button 
