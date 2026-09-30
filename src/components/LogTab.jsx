@@ -55,13 +55,13 @@ export default function LogTab({
 
     // V2 FIX: Validation for insufficient funds
     if (formData.sourceType === 'bank' && formData.account_id) {
-      const acc = accounts.find(a => a.id === formData.account_id);
+      const acc = accounts.find(a => String(a.id) === String(formData.account_id));
       if (acc && parsed > acc.balance) {
         alert(`Amount exceeds account balance. Available: ${acc.currency === 'NGN' ? formatNaira(acc.balance) : formatUSD(acc.balance)}`);
         return;
       }
     } else if (formData.sourceType === 'goal' && formData.goal_id) {
-      const goal = goals.find(g => g.id === formData.goal_id);
+      const goal = goals.find(g => String(g.id) === String(formData.goal_id));
       if (goal && parsed > goal.current) {
         alert(`Amount exceeds goal balance. Available: ${formatNaira(goal.current)}`);
         return;
