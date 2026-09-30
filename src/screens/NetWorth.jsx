@@ -55,20 +55,22 @@ export default function NetWorth() {
   const fetchData = async () => {
     try {
       const [txs, accountsData, rate, transferTxs, feeTxs] = await Promise.all([
-        getTransactions(), 
+        getTransactions(),
         getAccounts(),
         getSetting('exchange_rate'),
         getTransactions({ type: 'transfer' }),
-        getTransactions({ type: 'bank_fee' }) 
+        getTransactions({ type: 'bank_fee' })
       ]);
-      
+
       const safeAccounts = accountsData || [];
       const safeRate = rate || 1;
 
-      const calculated = calculateNetWorth(txs, safeAccounts, safeRate);
+      // V2 FIX: Added null for asOfDate, and goals as the 5th argument
+      const calculated = calculateNetWorth(txs, safeAccounts, safeRate, null, goals);
+
       setData(calculated);
       setExchangeRate(safeRate);
-      
+
       const combined = [...transferTxs, ...feeTxs].sort((a, b) => new Date(b.date) - new Date(a.date));
       setTransfers(combined);
     } catch (error) {

@@ -1,6 +1,6 @@
-// ── Net Worth Engine (V2) ─
-// V2 UPDATE: Added optional 'asOfDate' parameter for historical trend calculations
-export const calculateNetWorth = (transactions, accounts, exchangeRate, asOfDate = null) => {
+// ── Net Worth Engine (V2) ──
+// V2 UPDATE: Added 'goals' parameter to include virtual goal buckets in Total Net Worth
+export const calculateNetWorth = (transactions, accounts, exchangeRate, asOfDate = null, goals = []) => {
   const accountBalances = {};
   const safeAccounts = accounts || [];
 
@@ -91,28 +91,40 @@ export const calculateNetWorth = (transactions, accounts, exchangeRate, asOfDate
     return acc;
   });
 
-  const totalNetWorth = totalNgn + (totalUsd * exchangeRate);
+  // V2 UPDATE: Calculate Virtual Goal Balances (The "Virtual Asset" Fix)
+  let totalGoalBalance = 0;
+  if (goals && goals.length > 0) {
+    if (!asOfDate) {
+      // Live calculation: use the current balances from the database
+      totalGoalBalance = goals.reduce((sum, goal) => sum + (Number(goal.current) || 0), 0);
+    } else {
+      // Historical calculation: sum of goal funding transactions up to that date
+      totalGoalBalance = transactions
+        .filter(tx => tx.type === 'goal_transfer' && tx.date <= asOfDate)
+        .reduce((sum, tx) => sum + tx.amount, 0);
+    }
+  }
+
+  // V2 UPDATE: Final Net Worth = Real Accounts + Virtual Goals
+  const totalNetWorth = totalNgn + (totalUsd * exchangeRate) + totalGoalBalance;
 
   return {
     total: totalNetWorth,
     ngn: totalNgn,
     usd: totalUsd,
     usdInNgn: totalUsd * exchangeRate,
+    goalBalance: totalGoalBalance, // Exposed for UI if needed
     accounts: finalAccountsList
   };
 };
 
-// ── Available to Spend Engine (V2 Addition) ──
-export const calculateAvailableToSpend = (netWorthData, goals) => {
-  const totalCash = netWorthData.ngn + netWorthData.usdInNgn;
-  const totalGoalProgress = goals
-    .filter(goal => !goal.is_paid)
-    .reduce((sum, goal) => sum + (goal.current || 0), 0);
-
-  return Math.max(0, totalCash - totalGoalProgress);
+// ── Available to Spend Engine (V2 FIX - Liquid Cash Model) ──
+// V2 UPDATE: Simplified to strictly return liquid cash in real accounts.
+export const calculateAvailableToSpend = (netWorthData) => {
+  return netWorthData.ngn + netWorthData.usdInNgn;
 };
 
-// ── Monthly Summary (Dashboard) ──
+// ── Monthly Summary (Dashboard) ─
 export const calculateMonthlySummary = (transactions, monthKey, exchangeRate = 1) => {
   let income = 0;
   let expenses = 0;
@@ -143,7 +155,7 @@ export const calculateMonthlySummary = (transactions, monthKey, exchangeRate = 1
   };
 };
 
-// ─ Baseline vs Actual (Expenses & Family) ──
+// ── Baseline vs Actual (Expenses & Family) ──
 export const calculateBaselineVsActual = (baseline, transactions, monthKey, typeFilter) => {
   const actuals = {};
   Object.keys(baseline).forEach((key) => { actuals[key] = 0; });
@@ -164,21 +176,30 @@ export const calculateBaselineVsActual = (baseline, transactions, monthKey, type
   }));
 };
 
-// ─ Historical Trend Calculation ──
-export const calculateHistoricalTrend = (allTransactions, accounts, exchangeRate) => {
+// ── Historical Trend Calculation ─
+// V2 UPDATE: Added 'goals' parameter so historical net worth includes virtual goal assets
+// ── Historical Trend Calculation ──
+export const calculateHistoricalTrend = (allTransactions, accounts, exchangeRate, goals = []) => {
   const trendData = [];
   const today = new Date();
 
   for (let i = 5; i >= 0; i--) {
     const targetDate = new Date(today.getFullYear(), today.getMonth() - i, 1);
     const monthName = targetDate.toLocaleString('default', { month: 'short' });
+    
+    // FIX: Calculate the last day of the month
     const lastDayOfMonth = new Date(targetDate.getFullYear(), targetDate.getMonth() + 1, 0);
-    const lastDayKey = lastDayOfMonth.toISOString().slice(0, 10);
+    
+    // FIX: Format the date manually to avoid UTC timezone shifting
+    const year = lastDayOfMonth.getFullYear();
+    const month = String(lastDayOfMonth.getMonth() + 1).padStart(2, '0');
+    const day = String(lastDayOfMonth.getDate()).padStart(2, '0');
+    const lastDayKey = `${year}-${month}-${day}`;
     
     const historicalTxs = allTransactions.filter(tx => tx.date <= lastDayKey);
     
-    // V2 FIX: Pass the historical date into the math engine so it respects starting_balance_date
-    const snapshot = calculateNetWorth(historicalTxs, accounts || [], exchangeRate, lastDayKey);
+    // Pass the historical date and goals into the math engine
+    const snapshot = calculateNetWorth(historicalTxs, accounts || [], exchangeRate, lastDayKey, goals);
 
     trendData.push({ month: monthName, value: snapshot.total });
   }

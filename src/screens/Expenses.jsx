@@ -27,24 +27,26 @@ export default function Expenses() {
   const [dateFilter, setDateFilter] = useState({ start: '', end: '' });
 
   useEffect(() => {
-    const loadData = async () => {
-      // V2 FIX: Fetch ALL transactions for the math engine, and expense-only for the UI
-      const [allTxs, expenseTxs, g, accs, rate] = await Promise.all([
-        getTransactions(), // Needed for accurate live balance calculation
-        getTransactions({ type: 'expense' }), // Needed for the UI list
-        getGoals(),
-        getAccounts(),
-        getSetting('exchange_rate')
-      ]);
-      
-      // Calculate live balances using ALL transactions
-      const netWorthData = calculateNetWorth(allTxs, accs, rate || 1);
-      
-      setCategories(await getCategories());
-      setTransactions(expenseTxs);
-      setGoals(g);
-      setAccounts(netWorthData.accounts);
-    };
+    useEffect(() => {
+      const loadData = async () => {
+        const [allTxs, expenseTxs, g, accs, rate] = await Promise.all([
+          getTransactions(),
+          getTransactions({ type: 'expense' }),
+          getGoals(),
+          getAccounts(),
+          getSetting('exchange_rate')
+        ]);
+
+        // V2 FIX: Added null for asOfDate, and 'g' (goals) as the 5th argument
+        const netWorthData = calculateNetWorth(allTxs, accs, rate || 1, null, g);
+
+        setCategories(await getCategories());
+        setTransactions(expenseTxs);
+        setGoals(g);
+        setAccounts(netWorthData.accounts);
+      };
+      loadData();
+    }, []);
     loadData();
   }, []);
 
@@ -71,12 +73,11 @@ export default function Expenses() {
   // V2 FIX: Completely rewritten to fetch ALL transactions for accurate live balance recalculation
   const handleAdd = async (tx) => {
     await addTransaction({ ...tx, type: 'expense' });
-    
+
     if (tx.goal_id) { 
       await updateGoal(tx.goal_id, { is_paid: true }); 
     }
-    
-    // Fetch ALL transactions to recalculate the true live balance
+
     const [allTxs, expenseTxs, newGoals, newAccs, rate] = await Promise.all([
       getTransactions(), 
       getTransactions({ type: 'expense' }),
@@ -85,11 +86,12 @@ export default function Expenses() {
       getSetting('exchange_rate')
     ]);
 
-    const netWorthData = calculateNetWorth(allTxs, newAccs, rate || 1);
+    // V2 FIX: Added null for asOfDate, and newGoals as the 5th argument
+    const netWorthData = calculateNetWorth(allTxs, newAccs, rate || 1, null, newGoals);
 
     setTransactions(expenseTxs);
     setGoals(newGoals);
-    setAccounts(netWorthData.accounts); // Update state with true live balances
+    setAccounts(netWorthData.accounts);
   };
 
   const handleDelete = async (id) => {

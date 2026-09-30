@@ -40,7 +40,7 @@ export default function Dashboard() {
     accounts: []
   });
 
-  const [rawData, setRawData] = useState({ transactions: [], accounts: [], exchangeRate: 1 });
+  const [rawData, setRawData] = useState({ transactions: [], accounts: [], exchangeRate: 1, goals: [] });
   const [loading, setLoading] = useState(true);
   const [currentMonth, setCurrentMonth] = useState(new Date().toISOString().slice(0, 7));
   const [payingGoal, setPayingGoal] = useState(null);
@@ -61,8 +61,8 @@ export default function Dashboard() {
   });
 
   const trendData = useMemo(() => {
-    return calculateHistoricalTrend(rawData.transactions, rawData.accounts, rawData.exchangeRate);
-  }, [rawData.transactions, rawData.accounts, rawData.exchangeRate]);
+   return calculateHistoricalTrend(rawData.transactions, rawData.accounts, rawData.exchangeRate, rawData.goals);
+  }, [rawData.transactions, rawData.accounts, rawData.exchangeRate, rawData.goals]);
 
   useEffect(() => {
     const loadData = async () => {
@@ -76,7 +76,8 @@ export default function Dashboard() {
         ]);
 
         const safeRate = rate || 1;
-        setRawData({ transactions, accounts: accounts || [], exchangeRate: safeRate });
+        // V2 FIX: Added goals to rawData
+        setRawData({ transactions, accounts: accounts || [], exchangeRate: safeRate, goals });
 
         const prevMonthDate = new Date(`${currentMonth}-01`);
         prevMonthDate.setMonth(prevMonthDate.getMonth() - 1);
@@ -87,10 +88,11 @@ export default function Dashboard() {
 
         const summary = calculateMonthlySummary(currentMonthTxs, currentMonth, safeRate);
         const prevSummary = calculateMonthlySummary(prevMonthTxs, prevMonthKey, safeRate);
-        
-        // calculateNetWorth returns accounts with their LIVE calculated balances
-        const netWorthData = calculateNetWorth(transactions, accounts || [], safeRate);
-        const availableBalance = calculateAvailableToSpend(netWorthData, goals);
+
+        // V2 FIX: Added goals as 5th argument
+        const netWorthData = calculateNetWorth(transactions, accounts || [], safeRate, null, goals);
+        // V2 FIX: Removed goals argument
+        const availableBalance = calculateAvailableToSpend(netWorthData);
 
         const currentDelta = summary.income - summary.totalOutflow;
         const prevDelta = prevSummary.income - prevSummary.totalOutflow;
@@ -127,9 +129,8 @@ export default function Dashboard() {
           monthlyChange: currentDelta,
           percentageChange,
           trend: trendData,
-          accounts: netWorthData.accounts // Store accounts with LIVE balances
+          accounts: netWorthData.accounts
         });
-
       } catch (error) {
         console.error("Dashboard failed to load data:", error);
       } finally {
@@ -151,10 +152,13 @@ export default function Dashboard() {
       ]);
 
       const safeRate = rate || 1;
-      setRawData({ transactions, accounts: accounts || [], exchangeRate: safeRate });
+      // V2 FIX: Added goals to rawData
+      setRawData({ transactions, accounts: accounts || [], exchangeRate: safeRate, goals });
 
-      const netWorthData = calculateNetWorth(transactions, accounts || [], safeRate);
-      const availableBalance = calculateAvailableToSpend(netWorthData, goals);
+      // V2 FIX: Added goals as 5th argument
+      const netWorthData = calculateNetWorth(transactions, accounts || [], safeRate, null, goals);
+      // V2 FIX: Removed goals argument
+      const availableBalance = calculateAvailableToSpend(netWorthData);
 
       const prevMonthDate = new Date(`${currentMonth}-01`);
       prevMonthDate.setMonth(prevMonthDate.getMonth() - 1);
@@ -191,7 +195,7 @@ export default function Dashboard() {
       setData((prev) => ({
         ...prev,
         goals,
-        accounts: netWorthData.accounts, // Update accounts with LIVE balances
+        accounts: netWorthData.accounts,
         netWorth: netWorthData.total,
         availableBalance,
         income: summary.income,

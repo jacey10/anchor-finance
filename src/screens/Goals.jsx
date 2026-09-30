@@ -78,8 +78,9 @@ export default function Goals() {
         getTransactions(),
         getSetting('exchange_rate')
       ]);
-      
-      const calculatedData = calculateNetWorth(transactions, rawAccounts, exchangeRate || 1);
+
+      // V2 FIX: Added null for asOfDate, and goals as the 5th argument
+      const calculatedData = calculateNetWorth(transactions, rawAccounts, exchangeRate || 1, null, goals);
       setAccounts(calculatedData.accounts);
     } catch (error) {
       console.error("Failed to load accounts with balances:", error);
