@@ -8,7 +8,7 @@ export default function LogTab({
   categories,
   familyTypes = [],
   goals = [],
-  accounts = [],         // V2 UPDATE: Added accounts prop
+  accounts = [],
   currentMonth,
   type,
   onAdd,
@@ -23,8 +23,9 @@ export default function LogTab({
     date: new Date().toISOString().slice(0, 10),
     note: '',
     impulse: false,
-    goal_id: '',
-    account_id: ''       // V2 UPDATE: Added account_id to form state
+    sourceType: 'bank', // 'bank' or 'goal'
+    account_id: '',
+    goal_id: ''
   });
 
   const monthlyTransactions = useMemo(() => {
@@ -33,17 +34,14 @@ export default function LogTab({
 
   const byCategory = useMemo(() => {
     const map = {};
-    categories.forEach(c => {
-      map[c.name] = 0;
-    });
+    categories.forEach(c => { map[c.name] = 0; });
     monthlyTransactions.forEach(t => {
-      if (map[t.category] !== undefined) {
-        map[t.category] += t.amount;
-      }
+      if (map[t.category] !== undefined) map[t.category] += t.amount;
     });
     return map;
   }, [monthlyTransactions, categories]);
 
+  // V2 FIX: Restored the goal-funded spending calculation
   const goalFundedTotal = useMemo(() => {
     return monthlyTransactions
       .filter(tx => tx.goal_id)
@@ -54,29 +52,44 @@ export default function LogTab({
     e.preventDefault();
     const parsed = Number(formData.amount);
     if (!parsed || parsed <= 0) return;
-    
+
+    // V2 FIX: Validation for insufficient funds
+    if (formData.sourceType === 'bank' && formData.account_id) {
+      const acc = accounts.find(a => a.id === formData.account_id);
+      if (acc && parsed > acc.balance) {
+        alert(`Amount exceeds account balance. Available: ${acc.currency === 'NGN' ? formatNaira(acc.balance) : formatUSD(acc.balance)}`);
+        return;
+      }
+    } else if (formData.sourceType === 'goal' && formData.goal_id) {
+      const goal = goals.find(g => g.id === formData.goal_id);
+      if (goal && parsed > goal.current) {
+        alert(`Amount exceeds goal balance. Available: ${formatNaira(goal.current)}`);
+        return;
+      }
+    }
+
     if (onBeforeAdd) {
       const shouldProceed = onBeforeAdd({ ...formData, amount: parsed });
       if (!shouldProceed) return;
     }
-    
-    // V2 UPDATE: Include account_id in the payload
+
     onAdd({
       ...formData,
       amount: parsed,
       type,
       support_type: formData.support_type || null,
-      goal_id: formData.goal_id || null,
-      account_id: formData.account_id || null
+      impulse: formData.impulse || false,
+      account_id: formData.sourceType === 'bank' ? formData.account_id : null,
+      goal_id: formData.sourceType === 'goal' ? formData.goal_id : null
     });
-    
-    setFormData({
-      ...formData,
-      amount: '',
-      note: '',
-      support_type: '',
-      goal_id: '',
-      account_id: ''       // V2 UPDATE: Reset account_id
+
+    setFormData({ 
+      ...formData, 
+      amount: '', 
+      note: '', 
+      support_type: '', 
+      account_id: '', 
+      goal_id: '' 
     });
     setShowForm(false);
   };
@@ -102,9 +115,10 @@ export default function LogTab({
           );
         })}
       </div>
-      
+
+      {/* V2 FIX: Restored the Goal Summary Banner */}
       {goalFundedTotal > 0 && (
-        <div className="goal-summary-banner">
+        <div className="goal-summary-banner" style={{ marginTop: 16, padding: '12px 16px', background: 'rgba(184, 147, 95, 0.1)', borderRadius: 8, border: '1px solid var(--accent-gold)', color: 'var(--accent-gold)', fontWeight: 600, fontSize: 14 }}>
           🎯 Goal-funded spending this month: {formatNaira(goalFundedTotal)}
         </div>
       )}
@@ -115,11 +129,7 @@ export default function LogTab({
           <p className="hint-text">Nothing logged in this period.</p>
         )}
         {filteredTransactions.map(tx => (
-          <TransactionRow
-            key={tx.id}
-            transaction={tx}
-            onDelete={onDelete}
-          />
+          <TransactionRow key={tx.id} transaction={tx} onDelete={onDelete} />
         ))}
       </div>
 
@@ -133,57 +143,90 @@ export default function LogTab({
               className="form-select"
             >
               {categories.map(c => (
-                <option key={c.name} value={c.name}>
-                  {c.name}
-                </option>
+                <option key={c.name} value={c.name}>{c.name}</option>
               ))}
             </select>
           </label>
 
-          {/* V2 UPDATE: New Account Dropdown */}
-          <label className="form-label">
-            Account
-            <select
-              value={formData.account_id}
-              onChange={(e) => setFormData({ ...formData, account_id: e.target.value })}
-              className="form-select"
-              required
-            >
-              <option value="">Select an account</option>
-              {accounts.map(acc => (
-                <option key={acc.id} value={acc.id}>
-                  {acc.name} ({acc.currency === 'NGN' ? formatNaira(acc.balance || acc.starting_balance) : formatUSD(acc.balance || acc.starting_balance)})
-                </option>
+          {/* V2 UPDATE: Unified Source Selection (Option 1: Segmented Pill Control) */}
+          <div className="form-label" style={{ marginBottom: 12 }}>
+            <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', display: 'block', marginBottom: 8 }}>Pay From</span>
+            <div style={{ 
+              display: 'flex', 
+              background: 'var(--bg-secondary, #f4f4f5)', 
+              borderRadius: 8, 
+              padding: 4,
+              gap: 4
+            }}>
+              {['bank', 'goal'].map((source) => (
+                <button
+                  key={source}
+                  type="button"
+                  onClick={() => setFormData({ ...formData, sourceType: source, account_id: '', goal_id: '' })}
+                  style={{
+                    flex: 1,
+                    padding: '10px 0',
+                    borderRadius: 6,
+                    border: 'none',
+                    cursor: 'pointer',
+                    fontWeight: 600,
+                    fontSize: 14,
+                    transition: 'all 0.2s ease',
+                    background: formData.sourceType === source ? 'var(--accent-gold)' : 'transparent',
+                    color: formData.sourceType === source ? '#ffffff' : 'var(--text-muted)'
+                  }}
+                >
+                  {source === 'bank' ? '🏦 Bank Account' : '🎯 Goal Savings'}
+                </button>
               ))}
-            </select>
-            {accounts.length === 0 && (
-              <span style={{ fontSize: 12, color: 'var(--accent-gold)', marginTop: 4, display: 'block' }}>
-                No accounts found. Go to Net Worth to add one.
-              </span>
-            )}
-          </label>
+            </div>
+          </div>
 
-          {/* V2 UPDATE: Renamed from "Pay from Goal" to "Tag with Goal" */}
-          {type === 'expense' && (
+          {formData.sourceType === 'bank' && (
             <label className="form-label">
-              Tag with Goal (Optional)
+              Select Account
+              <select
+                value={formData.account_id}
+                onChange={(e) => setFormData({ ...formData, account_id: e.target.value })}
+                className="form-select"
+                required
+              >
+                <option value="">Choose an account</option>
+                {accounts.map(acc => (
+                  <option key={acc.id} value={acc.id}>
+                    {acc.name} ({acc.currency === 'NGN' ? formatNaira(acc.balance || acc.starting_balance) : formatUSD(acc.balance || acc.starting_balance)})
+                  </option>
+                ))}
+              </select>
+              {accounts.length === 0 && (
+                <span style={{ fontSize: 12, color: 'var(--accent-gold)', marginTop: 4, display: 'block' }}>
+                  No accounts found. Go to Net Worth to add one.
+                </span>
+              )}
+            </label>
+          )}
+
+          {formData.sourceType === 'goal' && (
+            <label className="form-label">
+              Select Goal
               <select
                 value={formData.goal_id}
                 onChange={(e) => setFormData({ ...formData, goal_id: e.target.value })}
                 className="form-select"
+                required
               >
-                <option value="">None (Regular expense)</option>
-                {goals
-                  .filter((g) => g.current > 0 && !g.is_paid)
-                  .map((g) => (
-                    <option key={g.id} value={g.id}>
-                      {g.name} ({formatNaira(g.current)})
-                    </option>
-                  ))}
+                <option value="">Choose a goal</option>
+                {goals.filter(g => g.current > 0 && !g.is_paid).map(g => (
+                  <option key={g.id} value={g.id}>
+                    {g.name} ({formatNaira(g.current)} available)
+                  </option>
+                ))}
               </select>
-              <span style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4, display: 'block' }}>
-                Tagging will mark this goal as paid when you save
-              </span>
+              {goals.filter(g => g.current > 0 && !g.is_paid).length === 0 && (
+                <span style={{ fontSize: 12, color: 'var(--accent-gold)', marginTop: 4, display: 'block' }}>
+                  No active goals with funds available.
+                </span>
+              )}
             </label>
           )}
 
@@ -252,11 +295,7 @@ export default function LogTab({
           )}
 
           <div className="form-actions">
-            <button
-              type="button"
-              className="btn btn-ghost"
-              onClick={() => setShowForm(false)}
-            >
+            <button type="button" className="btn btn-ghost" onClick={() => setShowForm(false)}>
               Cancel
             </button>
             <button type="submit" className="btn btn-primary">
@@ -265,11 +304,7 @@ export default function LogTab({
           </div>
         </form>
       ) : (
-        <button
-          onClick={() => setShowForm(true)}
-          className="btn btn-outline"
-          style={{ marginTop: 20 }}
-        >
+        <button onClick={() => setShowForm(true)} className="btn btn-outline" style={{ marginTop: 20 }}>
           + Add New Entry
         </button>
       )}

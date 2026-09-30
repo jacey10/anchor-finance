@@ -1,12 +1,10 @@
 import { supabase } from './supabase.js';
 
-// Helper to get the current logged-in user's ID
 const getUserId = async () => {
   const { data: { user } } = await supabase.auth.getUser();
   return user?.id;
 };
 
-// ── Settings ─
 export const getSetting = async (key) => {
   const userId = await getUserId();
   if (!userId) return 0;
@@ -22,31 +20,19 @@ export const updateSetting = async (key, value) => {
   if (error) throw error;
 };
 
-// ── Accounts ──
 export const getAccounts = async () => {
   const userId = await getUserId();
-  const { data, error } = await supabase
-    .from('accounts')
-    .select('id, name, currency, starting_balance, starting_balance_date, created_at')
-    .eq('user_id', userId)
-    .order('created_at', { ascending: true });
-    
+  const { data, error } = await supabase.from('accounts').select('id, name, currency, starting_balance, starting_balance_date, created_at').eq('user_id', userId).order('created_at', { ascending: true });
   if (error) throw error;
-  
-  return (data || []).map(acc => ({ 
-    ...acc, 
-    starting_balance: Number(acc.starting_balance) || 0 
-  }));
+  return (data || []).map(acc => ({ ...acc, starting_balance: Number(acc.starting_balance) || 0 }));
 };
 
 export const addAccount = async (account) => {
   const userId = await getUserId();
   const { data, error } = await supabase.from('accounts').insert([{ 
-    user_id: userId, 
-    name: account.name, 
-    currency: account.currency || 'NGN', 
+    user_id: userId, name: account.name, currency: account.currency || 'NGN', 
     starting_balance: Number(account.starting_balance) || 0,
-    starting_balance_date: account.starting_balance_date || new Date().toISOString().slice(0, 10) // V2 FIX: Save the date
+    starting_balance_date: account.starting_balance_date || new Date().toISOString().slice(0, 10)
   }]).select().single();
   if (error) throw error;
   return data;
@@ -62,7 +48,6 @@ export const deleteAccount = async (id) => {
   if (error) throw error;
 };
 
-// ── Transactions ──
 export const getTransactions = async (filters = {}) => {
   const userId = await getUserId();
   let query = supabase.from('transactions').select('*').eq('user_id', userId).order('date', { ascending: false });
@@ -76,30 +61,21 @@ export const getTransactions = async (filters = {}) => {
 export const addTransaction = async (tx) => {
   const userId = await getUserId();
   const { data, error } = await supabase.from('transactions').insert([{
-    user_id: userId,
-    type: tx.type,
-    source: tx.source || null,
-    category: tx.category || null,
-    person: tx.person || null,
-    support_type: tx.support_type || null,
-    amount: tx.amount,
-    currency: tx.currency || 'NGN',
-    note: tx.note || null,
-    date: tx.date,
-    recurring: tx.recurring || false,
-    impulse: tx.impulse || false,
-    goal_id: tx.goal_id || null,
-    account_id: tx.account_id || null,
-    transfer_to_account_id: tx.transfer_to_account_id || null,
-    fee: Number(tx.fee) || 0
+    user_id: userId, type: tx.type, source: tx.source || null, category: tx.category || null,
+    person: tx.person || null, support_type: tx.support_type || null, amount: tx.amount,
+    currency: tx.currency || 'NGN', note: tx.note || null, date: tx.date,
+    recurring: tx.recurring || false, impulse: tx.impulse || false,
+    goal_id: tx.goal_id || null, account_id: tx.account_id || null,
+    transfer_to_account_id: tx.transfer_to_account_id || null, fee: Number(tx.fee) || 0
   }]).select().single();
   if (error) throw error;
 
-  if (tx.type === 'transfer' && tx.goal_id) {
+  // V2 FIX: If expense is funded by a goal, deduct from goal's current balance
+  if (tx.type === 'expense' && tx.goal_id) {
     const { data: goal, error: goalFetchError } = await supabase.from('goals').select('current').eq('id', tx.goal_id).single();
     if (goalFetchError && goalFetchError.code !== 'PGRST116') throw goalFetchError;
     if (goal) {
-      const newCurrent = (goal.current || 0) + tx.amount;
+      const newCurrent = Math.max(0, (goal.current || 0) - tx.amount);
       const { error: goalUpdateError } = await supabase.from('goals').update({ current: newCurrent }).eq('id', tx.goal_id);
       if (goalUpdateError) throw goalUpdateError;
     }
@@ -113,22 +89,35 @@ export const updateTransaction = async (id, updates) => {
 };
 
 export const deleteTransaction = async (id) => {
-  const { data: tx, error: fetchError } = await supabase.from('transactions').select('goal_id, amount').eq('id', id).single();
+  const { data: tx, error: fetchError } = await supabase.from('transactions').select('goal_id, amount, type').eq('id', id).single();
   if (fetchError) throw fetchError;
-  if (tx && tx.goal_id) {
+  
+  // V2 FIX: If deleted expense was funded by a goal, ADD the amount back to reverse the depletion
+  if (tx && tx.type === 'expense' && tx.goal_id) {
     const { data: goal, error: goalFetchError } = await supabase.from('goals').select('current').eq('id', tx.goal_id).single();
     if (goalFetchError && goalFetchError.code !== 'PGRST116') throw goalFetchError;
     if (goal) {
-      const newCurrent = Math.max(0, goal.current - tx.amount);
+      const newCurrent = (goal.current || 0) + tx.amount;
       const { error: goalUpdateError } = await supabase.from('goals').update({ current: newCurrent }).eq('id', tx.goal_id);
       if (goalUpdateError) throw goalUpdateError;
     }
   }
+
+  // V2 FIX: If a "Pay towards Goal" transaction is deleted, subtract that amount from the goal
+  if (tx && tx.type === 'goal_transfer' && tx.goal_id) {
+    const { data: goal, error: goalFetchError } = await supabase.from('goals').select('current').eq('id', tx.goal_id).single();
+    if (goalFetchError && goalFetchError.code !== 'PGRST116') throw goalFetchError;
+    if (goal) {
+      const newCurrent = Math.max(0, (goal.current || 0) - tx.amount);
+      const { error: goalUpdateError } = await supabase.from('goals').update({ current: newCurrent }).eq('id', tx.goal_id);
+      if (goalUpdateError) throw goalUpdateError;
+    }
+  }
+  
   const { error } = await supabase.from('transactions').delete().eq('id', id);
   if (error) throw error;
 };
 
-// ── Goals ──
 export const getGoals = async () => {
   const userId = await getUserId();
   const { data, error } = await supabase.from('goals').select('*').eq('user_id', userId).order('created_at', { ascending: true });
@@ -153,7 +142,6 @@ export const deleteGoal = async (id) => {
   if (error) throw error;
 };
 
-// ── Wishlist ──
 export const getWishlistItems = async () => {
   const userId = await getUserId();
   const { data, error } = await supabase.from('wishlist_items').select('*').eq('user_id', userId).order('created_at', { ascending: false });
@@ -178,7 +166,6 @@ export const deleteWishlistItem = async (id) => {
   if (error) throw error;
 };
 
-// ─ Notes ──
 export const getNotes = async () => {
   const userId = await getUserId();
   const { data, error } = await supabase.from('notes').select('*').eq('user_id', userId).order('created_at', { ascending: false });
@@ -198,7 +185,6 @@ export const deleteNote = async (id) => {
   if (error) throw error;
 };
 
-// ── Categories ──
 export const getCategories = async () => {
   const userId = await getUserId();
   const { data, error } = await supabase.from('categories').select('*').eq('user_id', userId).order('name');
@@ -218,7 +204,6 @@ export const deleteCategory = async (id) => {
   if (error) throw error;
 };
 
-// ── Income Sources ──
 export const getIncomeSources = async () => {
   const userId = await getUserId();
   const { data, error } = await supabase.from('income_sources').select('*').eq('user_id', userId).order('name');
@@ -238,7 +223,6 @@ export const deleteIncomeSource = async (id) => {
   if (error) throw error;
 };
 
-// ── People ──
 export const getPeople = async () => {
   const userId = await getUserId();
   const { data, error } = await supabase.from('people').select('*').eq('user_id', userId).order('name');
@@ -263,7 +247,6 @@ export const deletePerson = async (id) => {
   if (error) throw error;
 };
 
-// ─ Family Types ──
 export const getFamilyTypes = async () => {
   const { data, error } = await supabase.from('family_types').select('*').order('name');
   if (error) throw error;

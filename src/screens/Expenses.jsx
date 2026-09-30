@@ -1,17 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import {
-  getCategories,
-  getTransactions,
-  addTransaction,
-  deleteTransaction,
-  getGoals,
-  updateGoal,
-  getAccounts,
-  getSetting
-} from '../lib/storage';
+import { getCategories, getTransactions, addTransaction, deleteTransaction, getGoals, getAccounts, getSetting } from '../lib/storage';
 import { calculateNetWorth } from '../lib/calculations';
-import { formatNaira } from '../lib/format';
 import BaselineTab from '../components/BaselineTab';
 import LogTab from '../components/LogTab';
 import MonthPicker from '../components/MonthPicker';
@@ -21,32 +11,25 @@ export default function Expenses() {
   const [categories, setCategories] = useState([]);
   const [transactions, setTransactions] = useState([]);
   const [goals, setGoals] = useState([]);
-  const [accounts, setAccounts] = useState([]); 
-  
+  const [accounts, setAccounts] = useState([]);
   const [currentMonth, setCurrentMonth] = useState(new Date().toISOString().slice(0, 7));
   const [dateFilter, setDateFilter] = useState({ start: '', end: '' });
 
   useEffect(() => {
-    useEffect(() => {
-      const loadData = async () => {
-        const [allTxs, expenseTxs, g, accs, rate] = await Promise.all([
-          getTransactions(),
-          getTransactions({ type: 'expense' }),
-          getGoals(),
-          getAccounts(),
-          getSetting('exchange_rate')
-        ]);
-
-        // V2 FIX: Added null for asOfDate, and 'g' (goals) as the 5th argument
-        const netWorthData = calculateNetWorth(allTxs, accs, rate || 1, null, g);
-
-        setCategories(await getCategories());
-        setTransactions(expenseTxs);
-        setGoals(g);
-        setAccounts(netWorthData.accounts);
-      };
-      loadData();
-    }, []);
+    const loadData = async () => {
+      const [allTxs, expenseTxs, g, accs, rate] = await Promise.all([
+        getTransactions(),
+        getTransactions({ type: 'expense' }),
+        getGoals(),
+        getAccounts(),
+        getSetting('exchange_rate')
+      ]);
+      const netWorthData = calculateNetWorth(allTxs, accs, rate || 1, null, g);
+      setCategories(await getCategories());
+      setTransactions(expenseTxs);
+      setGoals(g);
+      setAccounts(netWorthData.accounts);
+    };
     loadData();
   }, []);
 
@@ -55,9 +38,7 @@ export default function Expenses() {
     if (!name || name.trim() === '') return;
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
-    const { error } = await supabase
-      .from('categories')
-      .insert([{ name: name.trim(), user_id: user.id, baseline: 0 }]);
+    const { error } = await supabase.from('categories').insert([{ name: name.trim(), user_id: user.id, baseline: 0 }]);
     if (error) { alert('Error adding category: ' + error.message); return; }
     setCategories(await getCategories()); 
   };
@@ -70,14 +51,9 @@ export default function Expenses() {
     setCategories(await getCategories());
   };
 
-  // V2 FIX: Completely rewritten to fetch ALL transactions for accurate live balance recalculation
   const handleAdd = async (tx) => {
     await addTransaction({ ...tx, type: 'expense' });
-
-    if (tx.goal_id) { 
-      await updateGoal(tx.goal_id, { is_paid: true }); 
-    }
-
+    
     const [allTxs, expenseTxs, newGoals, newAccs, rate] = await Promise.all([
       getTransactions(), 
       getTransactions({ type: 'expense' }),
@@ -86,9 +62,7 @@ export default function Expenses() {
       getSetting('exchange_rate')
     ]);
 
-    // V2 FIX: Added null for asOfDate, and newGoals as the 5th argument
     const netWorthData = calculateNetWorth(allTxs, newAccs, rate || 1, null, newGoals);
-
     setTransactions(expenseTxs);
     setGoals(newGoals);
     setAccounts(netWorthData.accounts);
@@ -119,14 +93,11 @@ export default function Expenses() {
     <div className="screen">
       <h1 className="screen-title">Expenses</h1>
       <p className="screen-sub">Your floor, and what actually happened.</p>
-      
       <div className="tab-row">
         <button className={`tab-button ${tab === 'baseline' ? 'active' : ''}`} onClick={() => setTab('baseline')}>Baseline</button>
         <button className={`tab-button ${tab === 'log' ? 'active' : ''}`} onClick={() => setTab('log')}>Log</button>
       </div>
-      
       <MonthPicker currentMonth={currentMonth} onChange={setCurrentMonth} />
-      
       {tab === 'baseline' ? (
         <BaselineTab 
           items={categories.map(c => ({ key: c.name, name: c.name, value: c.baseline || 0 }))} 
@@ -140,17 +111,14 @@ export default function Expenses() {
       ) : (
         <div>
           <div className="form-card" style={{ marginBottom: 20, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-end', gap: 12 }}>
-            <label className="form-label" style={{ flex: 1, minWidth: 120 }}>
-              Date From
+            <label className="form-label" style={{ flex: 1, minWidth: 120 }}>Date From
               <input type="date" value={dateFilter.start} onChange={(e) => setDateFilter({...dateFilter, start: e.target.value})} className="form-input" />
             </label>
-            <label className="form-label" style={{ flex: 1, minWidth: 120 }}>
-              Date To
+            <label className="form-label" style={{ flex: 1, minWidth: 120 }}>Date To
               <input type="date" value={dateFilter.end} onChange={(e) => setDateFilter({...dateFilter, end: e.target.value})} className="form-input" />
             </label>
             <button className="btn btn-ghost" onClick={() => setDateFilter({ start: '', end: '' })} style={{ height: 42 }}>Clear Filter</button>
           </div>
-          
           <LogTab 
             allTransactions={transactions} 
             filteredTransactions={filteredTransactions} 
