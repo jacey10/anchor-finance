@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { LineChart, Line, ResponsiveContainer, XAxis, YAxis, Tooltip } from 'recharts';
 import { getTransactions, getAccounts, getSetting, addAccount, deleteAccount, getGoals, addTransaction, deleteTransaction } from '../lib/storage';
 import { calculateNetWorth } from '../lib/calculations';
 import { formatNaira, formatUSD } from '../lib/format';
@@ -22,13 +23,14 @@ export default function NetWorth() {
 
   const fetchData = async () => {
     try {
-      const [txs, accountsData, rate, transferTxs, feeTxs, goalTransferTxs, fetchedGoals] = await Promise.all([
+      const [txs, accountsData, rate, transferTxs, feeTxs, goalTransferTxs, goalWithdrawalTxs, fetchedGoals] = await Promise.all([
         getTransactions(),
         getAccounts(),
         getSetting('exchange_rate'),
         getTransactions({ type: 'transfer' }),
         getTransactions({ type: 'bank_fee' }),
         getTransactions({ type: 'goal_transfer' }),
+        getTransactions({ type: 'goal_withdrawal' }),
         getGoals()
       ]);
 
@@ -45,7 +47,14 @@ export default function NetWorth() {
         return { ...tx, displayTitle: `${acc ? acc.name : 'Unknown Account'} → ${goal ? goal.name : 'Unknown Goal'}` };
       });
 
-      const combined = [...transferTxs, ...feeTxs, ...enrichedGoalTransfers].sort((a, b) => new Date(b.date) - new Date(a.date));
+      // V3 FIX: Enrich goal withdrawals with names for the UI
+      const enrichedGoalWithdrawals = goalWithdrawalTxs.map(tx => {
+        const acc = accountsData.find(a => a.id === tx.account_id);
+        const goal = fetchedGoals.find(g => g.id === tx.goal_id);
+        return { ...tx, displayTitle: `${goal ? goal.name : 'Unknown Goal'} → ${acc ? acc.name : 'Unknown Account'}` };
+      });
+
+      const combined = [...transferTxs, ...feeTxs, ...enrichedGoalTransfers, ...enrichedGoalWithdrawals].sort((a, b) => new Date(b.date) - new Date(a.date));
       setTransfers(combined);
     } catch (error) {
       console.error("Net Worth fetch failed:", error);
@@ -214,7 +223,6 @@ export default function NetWorth() {
               </div>
             ))}
           </div>
-
           <button className="btn btn-outline" style={{ marginTop: 20, width: '100%' }} onClick={handleOpenAddModal}>+ Add {activeTab === 'ngn' ? 'NGN' : 'USD'} Account</button>
           <button className="btn btn-primary" style={{ marginTop: 12, width: '100%' }} onClick={handleOpenTransferModal}>↗ Transfer Between Accounts</button>
         </>
@@ -227,7 +235,6 @@ export default function NetWorth() {
               <TransactionRow key={tx.id} transaction={tx} onDelete={handleDeleteTransfer} />
             ))}
           </div>
-
           <button className="btn btn-outline" style={{ marginTop: 20, width: '100%' }} onClick={() => setShowFeeModal(true)}>↗ Log Bank Fee</button>
           <button className="btn btn-primary" style={{ marginTop: 12, width: '100%' }} onClick={handleOpenTransferModal}>+ New Transfer</button>
         </>

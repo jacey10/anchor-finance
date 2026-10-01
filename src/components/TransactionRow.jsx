@@ -11,6 +11,10 @@ export default function TransactionRow({ transaction, onDelete }) {
     ? 'Bank Fee' 
     : (transaction.displayTitle || transaction.category || transaction.person || transaction.source || 'Transaction');
 
+  // V3 FIX: Protect goal transfers and withdrawals from deletion
+  // These are internal money movements that should be reversed via contra-transactions (withdrawals)
+  const isProtected = transaction.type === 'goal_transfer' || transaction.type === 'goal_withdrawal';
+
   return (
     <div className="list-row">
       <div className="list-row-content">
@@ -32,7 +36,9 @@ export default function TransactionRow({ transaction, onDelete }) {
       </div>
       <div className="list-row-actions">
         <div className="list-row-amount">{formattedAmount}</div>
-        <button className="btn-icon-small" onClick={() => onDelete(transaction.id)}>🗑</button>
+        {!isProtected && (
+          <button className="btn-icon-small" onClick={() => onDelete(transaction.id)}>🗑</button>
+        )}
       </div>
     </div>
   );
