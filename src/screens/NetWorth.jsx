@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { LineChart, Line, ResponsiveContainer, XAxis, YAxis, Tooltip } from 'recharts';
 import { getTransactions, getAccounts, getSetting, addAccount, deleteAccount, getGoals, addTransaction, deleteTransaction } from '../lib/storage';
 import { calculateNetWorth } from '../lib/calculations';
 import { formatNaira, formatUSD } from '../lib/format';
@@ -7,19 +6,16 @@ import Modal from '../components/Modal';
 import TransactionRow from '../components/TransactionRow';
 
 export default function NetWorth() {
-  const [data, setData] = useState({ total: 0, ngn: 0, usd: 0, accounts: [] });
+  const [data, setData] = useState({ total: 0, ngn: 0, usd: 0, goalBalance: 0, accounts: [] });
   const [exchangeRate, setExchangeRate] = useState(1);
   const [activeTab, setActiveTab] = useState('summary');
   const [transfers, setTransfers] = useState([]);
-
   const [showAddModal, setShowAddModal] = useState(false);
   const [newAccountForm, setNewAccountForm] = useState({ name: '', currency: 'NGN', starting_balance: '', starting_balance_date: new Date().toISOString().slice(0, 10) });
   const [formError, setFormError] = useState('');
-
   const [showTransferModal, setShowTransferModal] = useState(false);
   const [transferForm, setTransferForm] = useState({ from_account_id: '', to_account_id: '', amount: '', fee: '', date: new Date().toISOString().slice(0, 10), note: '' });
   const [transferError, setTransferError] = useState('');
-
   const [showFeeModal, setShowFeeModal] = useState(false);
   const [feeForm, setFeeForm] = useState({ account_id: '', amount: '', date: new Date().toISOString().slice(0, 10), note: '' });
   const [feeError, setFeeError] = useState('');
@@ -27,10 +23,15 @@ export default function NetWorth() {
   const fetchData = async () => {
     try {
       const [txs, accountsData, rate, transferTxs, feeTxs, goalTransferTxs, fetchedGoals] = await Promise.all([
-        getTransactions(), getAccounts(), getSetting('exchange_rate'),
-        getTransactions({ type: 'transfer' }), getTransactions({ type: 'bank_fee' }), getTransactions({ type: 'goal_transfer' }), getGoals()
+        getTransactions(),
+        getAccounts(),
+        getSetting('exchange_rate'),
+        getTransactions({ type: 'transfer' }),
+        getTransactions({ type: 'bank_fee' }),
+        getTransactions({ type: 'goal_transfer' }),
+        getGoals()
       ]);
-      
+
       const safeAccounts = accountsData || [];
       const safeRate = rate || 1;
       const calculated = calculateNetWorth(txs, safeAccounts, safeRate, null, fetchedGoals);
@@ -48,7 +49,7 @@ export default function NetWorth() {
       setTransfers(combined);
     } catch (error) {
       console.error("Net Worth fetch failed:", error);
-      setData({ total: 0, ngn: 0, usd: 0, accounts: [] });
+      setData({ total: 0, ngn: 0, usd: 0, goalBalance: 0, accounts: [] });
       setTransfers([]);
     }
   };
@@ -75,7 +76,7 @@ export default function NetWorth() {
     try {
       await addAccount({ name, currency: newAccountForm.currency, starting_balance: balance, starting_balance_date: date });
       setShowAddModal(false);
-      await fetchData(); 
+      await fetchData();
     } catch (err) {
       console.error("Failed to add account:", err);
       setFormError('Failed to add account. Please try again.');
@@ -84,7 +85,7 @@ export default function NetWorth() {
 
   const handleDeleteAccount = async (accountId, accountName) => {
     if (!window.confirm(`Are you sure you want to delete "${accountName}"? This will not delete historical transactions, but they will no longer be linked to this account.`)) return;
-    try { await deleteAccount(accountId); await fetchData(); } 
+    try { await deleteAccount(accountId); await fetchData(); }
     catch (err) { console.error("Failed to delete account:", err); alert('Failed to delete account. Please try again.'); }
   };
 
@@ -127,8 +128,10 @@ export default function NetWorth() {
     e.preventDefault();
     setFeeError('');
     const amount = Number(feeForm.amount);
+
     if (!feeForm.account_id) { setFeeError('Please select an account.'); return; }
     if (!amount || amount <= 0) { setFeeError('Amount must be greater than zero.'); return; }
+
     const acc = data.accounts.find(a => a.id === feeForm.account_id);
 
     try {
@@ -157,6 +160,7 @@ export default function NetWorth() {
     <div className="screen">
       <h1 className="screen-title">Net Worth</h1>
       <p className="screen-sub">Your total wealth across all assets.</p>
+
       <div className="tab-row">
         {['summary', 'ngn', 'usd', 'transfers'].map(tab => (
           <button key={tab} className={`tab-button ${activeTab === tab ? 'active' : ''}`} onClick={() => setActiveTab(tab)}>
@@ -168,24 +172,28 @@ export default function NetWorth() {
       {activeTab === 'summary' && (
         <>
           <div className="networth-cards">
-            <div className="networth-card main"><div className="networth-label">Total Net Worth</div><div className="networth-value">{formatNaira(data.total)}</div></div>
-            <div className="networth-card"><div className="networth-label">Naira Holdings</div><div className="networth-value">{formatNaira(data.ngn)}</div></div>
-            <div className="networth-card"><div className="networth-label">USD Holdings</div>
+            <div className="networth-card main">
+              <div className="networth-label">Total Net Worth</div>
+              <div className="networth-value">{formatNaira(data.total)}</div>
+            </div>
+            <div className="networth-card">
+              <div className="networth-label">Naira Holdings</div>
+              <div className="networth-value" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 4 }}>
+                <span>{formatNaira(data.ngn)}</span>
+                {data.goalBalance > 0 && (
+                  <span style={{ color: 'var(--accent-gold)', fontSize: 12, fontWeight: 'normal' }}>
+                    🎯 {formatNaira(data.goalBalance)} in virtual accounts
+                  </span>
+                )}
+              </div>
+            </div>
+            <div className="networth-card">
+              <div className="networth-label">USD Holdings</div>
               <div className="networth-value" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 4 }}>
                 <span>{formatUSD(data.usd)}</span>
                 <span style={{ color: 'var(--text-muted)', fontSize: 12, fontWeight: 'normal' }}>≈ {formatNaira(data.usd * exchangeRate)}</span>
               </div>
             </div>
-          </div>
-          <div className="chart-wrap" style={{ marginTop: 32 }}>
-            <ResponsiveContainer width="100%" height={220}>
-              <LineChart data={[{ month: 'Current', value: data.total }]}>
-                <XAxis dataKey="month" stroke="#5A6B7A" tick={{ fill: '#8A98A5' }} axisLine={{ stroke: '#2A3B4D' }} tickLine={false} />
-                <YAxis hide />
-                <Tooltip contentStyle={{ background: '#16283C', border: '1px solid #2A3B4D', color: '#EDE9E1' }} formatter={(value) => [formatNaira(value), 'Net worth']} />
-                <Line type="monotone" dataKey="value" stroke="#B8935F" strokeWidth={2} dot={{ fill: '#B8935F', r: 4 }} />
-              </LineChart>
-            </ResponsiveContainer>
           </div>
         </>
       )}
@@ -206,6 +214,7 @@ export default function NetWorth() {
               </div>
             ))}
           </div>
+
           <button className="btn btn-outline" style={{ marginTop: 20, width: '100%' }} onClick={handleOpenAddModal}>+ Add {activeTab === 'ngn' ? 'NGN' : 'USD'} Account</button>
           <button className="btn btn-primary" style={{ marginTop: 12, width: '100%' }} onClick={handleOpenTransferModal}>↗ Transfer Between Accounts</button>
         </>
@@ -218,6 +227,7 @@ export default function NetWorth() {
               <TransactionRow key={tx.id} transaction={tx} onDelete={handleDeleteTransfer} />
             ))}
           </div>
+
           <button className="btn btn-outline" style={{ marginTop: 20, width: '100%' }} onClick={() => setShowFeeModal(true)}>↗ Log Bank Fee</button>
           <button className="btn btn-primary" style={{ marginTop: 12, width: '100%' }} onClick={handleOpenTransferModal}>+ New Transfer</button>
         </>

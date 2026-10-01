@@ -29,8 +29,8 @@ export const getAccounts = async () => {
 
 export const addAccount = async (account) => {
   const userId = await getUserId();
-  const { data, error } = await supabase.from('accounts').insert([{ 
-    user_id: userId, name: account.name, currency: account.currency || 'NGN', 
+  const { data, error } = await supabase.from('accounts').insert([{
+    user_id: userId, name: account.name, currency: account.currency || 'NGN',
     starting_balance: Number(account.starting_balance) || 0,
     starting_balance_date: account.starting_balance_date || new Date().toISOString().slice(0, 10)
   }]).select().single();
@@ -80,6 +80,10 @@ export const addTransaction = async (tx) => {
       if (goalUpdateError) throw goalUpdateError;
     }
   }
+
+  // NOTE: goal_withdrawal is NOT handled here. The Goals.jsx handler owns the goal.current
+  // deduction to avoid double-deduction (Pattern A, same as goal_transfer).
+
   return data;
 };
 
@@ -91,8 +95,8 @@ export const updateTransaction = async (id, updates) => {
 export const deleteTransaction = async (id) => {
   const { data: tx, error: fetchError } = await supabase.from('transactions').select('goal_id, amount, type').eq('id', id).single();
   if (fetchError) throw fetchError;
-  
-  // V2 FIX: If deleted expense was funded by a goal, ADD the amount back to reverse the depletion
+
+  // V2 FIX: If deleted expense was funded by a goal, ADD the amount back
   if (tx && tx.type === 'expense' && tx.goal_id) {
     const { data: goal, error: goalFetchError } = await supabase.from('goals').select('current').eq('id', tx.goal_id).single();
     if (goalFetchError && goalFetchError.code !== 'PGRST116') throw goalFetchError;
@@ -113,7 +117,18 @@ export const deleteTransaction = async (id) => {
       if (goalUpdateError) throw goalUpdateError;
     }
   }
-  
+
+  // V3 FIX: If a goal withdrawal is deleted, ADD the amount back to the goal
+  if (tx && tx.type === 'goal_withdrawal' && tx.goal_id) {
+    const { data: goal, error: goalFetchError } = await supabase.from('goals').select('current').eq('id', tx.goal_id).single();
+    if (goalFetchError && goalFetchError.code !== 'PGRST116') throw goalFetchError;
+    if (goal) {
+      const newCurrent = (goal.current || 0) + tx.amount;
+      const { error: goalUpdateError } = await supabase.from('goals').update({ current: newCurrent }).eq('id', tx.goal_id);
+      if (goalUpdateError) throw goalUpdateError;
+    }
+  }
+
   const { error } = await supabase.from('transactions').delete().eq('id', id);
   if (error) throw error;
 };
@@ -138,6 +153,11 @@ export const updateGoal = async (id, updates) => {
 };
 
 export const deleteGoal = async (id) => {
+  // First, delete all transactions that reference this goal
+  const { error: txError } = await supabase.from('transactions').delete().eq('goal_id', id);
+  if (txError) throw txError;
+  
+  // Then delete the goal itself
   const { error } = await supabase.from('goals').delete().eq('id', id);
   if (error) throw error;
 };

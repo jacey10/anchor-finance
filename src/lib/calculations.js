@@ -1,12 +1,12 @@
-// ── Net Worth Engine (V2) ──
-// V2 UPDATE: Added 'goals' parameter to include virtual goal buckets in Total Net Worth
+// ── Net Worth Engine (V3) ──
+// V3 UPDATE: Fixed historical goal balance calculation to include withdrawals and goal-funded expenses
 export const calculateNetWorth = (transactions, accounts, exchangeRate, asOfDate = null, goals = []) => {
   const accountBalances = {};
   const safeAccounts = accounts || [];
-  
+
   safeAccounts.forEach((acc) => {
     let initialBalance = Number(acc.starting_balance) || 0;
-    
+
     // V2 FIX: If calculating a historical snapshot, check if the account existed yet
     if (asOfDate && acc.starting_balance_date) {
       const snapshotDate = new Date(asOfDate);
@@ -16,7 +16,7 @@ export const calculateNetWorth = (transactions, accounts, exchangeRate, asOfDate
         initialBalance = 0;
       }
     }
-    
+
     accountBalances[acc.id] = {
       id: acc.id,
       name: acc.name,
@@ -37,7 +37,7 @@ export const calculateNetWorth = (transactions, accounts, exchangeRate, asOfDate
     if (tx.type === 'transfer' && tx.account_id && tx.transfer_to_account_id) {
       const fromAcc = accountBalances[tx.account_id];
       const toAcc = accountBalances[tx.transfer_to_account_id];
-      
+
       if (fromAcc && toAcc) {
         if (fromAcc.currency !== toAcc.currency) {
           if (fromAcc.currency === 'NGN' && toAcc.currency === 'USD') {
@@ -53,14 +53,22 @@ export const calculateNetWorth = (transactions, accounts, exchangeRate, asOfDate
         }
       }
     }
+
     // V2 UPDATE: Handle standalone Bank Fees (SMS, maintenance, etc.)
     else if (tx.type === 'bank_fee' && tx.account_id && accountBalances[tx.account_id]) {
       accountBalances[tx.account_id].balance -= amount;
     }
+
     // Handle Goal Payments with account deduction
     else if (tx.type === 'goal_transfer' && tx.account_id && accountBalances[tx.account_id]) {
       accountBalances[tx.account_id].balance -= amount;
     }
+
+    // V3 FIX: Handle Goal Withdrawals - credit the destination account
+    else if (tx.type === 'goal_withdrawal' && tx.account_id && accountBalances[tx.account_id]) {
+      accountBalances[tx.account_id].balance += amount;
+    }
+
     // Handle Income, Expenses, Family Support linked to a specific account
     else if (tx.account_id && accountBalances[tx.account_id]) {
       if (tx.type === 'income') {
@@ -69,10 +77,12 @@ export const calculateNetWorth = (transactions, accounts, exchangeRate, asOfDate
         accountBalances[tx.account_id].balance -= amount;
       }
     }
+
     // V2 FIX: Handle goal-funded expenses (already deducted from goal.current)
     else if ((tx.type === 'expense' || tx.type === 'family_support') && tx.goal_id) {
       // Do nothing — deduction is captured in totalGoalBalance via goal.current
     }
+
     // Fallback for legacy transactions without an account_id
     else {
       if (tx.type === 'income') {
@@ -101,10 +111,18 @@ export const calculateNetWorth = (transactions, accounts, exchangeRate, asOfDate
       // Live calculation: use the current balances from the database
       totalGoalBalance = goals.reduce((sum, goal) => sum + (Number(goal.current) || 0), 0);
     } else {
-      // Historical calculation: sum of goal funding transactions up to that date
-      totalGoalBalance = transactions
+      // V3 FIX: Historical calculation — reconstruct goal balance from transactions
+      // Goal balance = funding - withdrawals - goal-funded expenses
+      const fundingTotal = transactions
         .filter(tx => tx.type === 'goal_transfer' && tx.date <= asOfDate)
         .reduce((sum, tx) => sum + tx.amount, 0);
+      const withdrawalTotal = transactions
+        .filter(tx => tx.type === 'goal_withdrawal' && tx.date <= asOfDate)
+        .reduce((sum, tx) => sum + tx.amount, 0);
+      const goalExpenseTotal = transactions
+        .filter(tx => (tx.type === 'expense' || tx.type === 'family_support') && tx.goal_id && tx.date <= asOfDate)
+        .reduce((sum, tx) => sum + tx.amount, 0);
+      totalGoalBalance = fundingTotal - withdrawalTotal - goalExpenseTotal;
     }
   }
 
@@ -138,13 +156,14 @@ export const calculateMonthlySummary = (transactions, monthKey, exchangeRate = 1
 
   filtered.forEach((tx) => {
     const amount = tx.currency === 'USD' ? tx.amount * exchangeRate : tx.amount;
-    
+
     if (tx.type === 'income') income += amount;
     if (tx.type === 'expense') {
       expenses += amount;
       if (tx.impulse) impulseTotal += amount;
     }
     if (tx.type === 'family_support') familySupport += amount;
+
     // NOTE: 'bank_fee' is intentionally excluded here to keep lifestyle outflow clean
   });
 
@@ -180,7 +199,8 @@ export const calculateBaselineVsActual = (baseline, transactions, monthKey, type
 };
 
 // ── Historical Trend Calculation ──
-// V2 UPDATE: Added 'goals' parameter so historical net worth includes virtual goal assets
+// V3 UPDATE: Now properly reconstructs goal balance at each historical point
+// by accounting for funding, withdrawals, AND goal-funded expenses
 export const calculateHistoricalTrend = (allTransactions, accounts, exchangeRate, goals = []) => {
   const trendData = [];
   const today = new Date();
@@ -191,7 +211,7 @@ export const calculateHistoricalTrend = (allTransactions, accounts, exchangeRate
 
     // FIX: Calculate the last day of the month
     const lastDayOfMonth = new Date(targetDate.getFullYear(), targetDate.getMonth() + 1, 0);
-    
+
     // FIX: Format the date manually to avoid UTC timezone shifting
     const year = lastDayOfMonth.getFullYear();
     const month = String(lastDayOfMonth.getMonth() + 1).padStart(2, '0');
@@ -199,9 +219,12 @@ export const calculateHistoricalTrend = (allTransactions, accounts, exchangeRate
     const lastDayKey = `${year}-${month}-${day}`;
 
     const historicalTxs = allTransactions.filter(tx => tx.date <= lastDayKey);
-    
+
     // Pass the historical date and goals into the math engine
+    // Note: `goals` is passed but ignored for historical snapshots — the engine
+    // reconstructs goal balance from transaction history instead
     const snapshot = calculateNetWorth(historicalTxs, accounts || [], exchangeRate, lastDayKey, goals);
+
     trendData.push({ month: monthName, value: snapshot.total });
   }
 
