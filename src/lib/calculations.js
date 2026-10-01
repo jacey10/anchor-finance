@@ -3,7 +3,7 @@
 export const calculateNetWorth = (transactions, accounts, exchangeRate, asOfDate = null, goals = []) => {
   const accountBalances = {};
   const safeAccounts = accounts || [];
-
+  
   safeAccounts.forEach((acc) => {
     let initialBalance = Number(acc.starting_balance) || 0;
     
@@ -11,13 +11,12 @@ export const calculateNetWorth = (transactions, accounts, exchangeRate, asOfDate
     if (asOfDate && acc.starting_balance_date) {
       const snapshotDate = new Date(asOfDate);
       const accountOpenDate = new Date(acc.starting_balance_date);
-      
       // If the snapshot date is before the account was opened, starting balance is 0
       if (snapshotDate < accountOpenDate) {
         initialBalance = 0;
       }
     }
-
+    
     accountBalances[acc.id] = {
       id: acc.id,
       name: acc.name,
@@ -38,7 +37,7 @@ export const calculateNetWorth = (transactions, accounts, exchangeRate, asOfDate
     if (tx.type === 'transfer' && tx.account_id && tx.transfer_to_account_id) {
       const fromAcc = accountBalances[tx.account_id];
       const toAcc = accountBalances[tx.transfer_to_account_id];
-
+      
       if (fromAcc && toAcc) {
         if (fromAcc.currency !== toAcc.currency) {
           if (fromAcc.currency === 'NGN' && toAcc.currency === 'USD') {
@@ -69,6 +68,10 @@ export const calculateNetWorth = (transactions, accounts, exchangeRate, asOfDate
       } else if (tx.type === 'expense' || tx.type === 'family_support') {
         accountBalances[tx.account_id].balance -= amount;
       }
+    }
+    // V2 FIX: Handle goal-funded expenses (already deducted from goal.current)
+    else if ((tx.type === 'expense' || tx.type === 'family_support') && tx.goal_id) {
+      // Do nothing — deduction is captured in totalGoalBalance via goal.current
     }
     // Fallback for legacy transactions without an account_id
     else {
@@ -124,7 +127,7 @@ export const calculateAvailableToSpend = (netWorthData) => {
   return netWorthData.ngn + netWorthData.usdInNgn;
 };
 
-// ── Monthly Summary (Dashboard) ─
+// ── Monthly Summary (Dashboard) ──
 export const calculateMonthlySummary = (transactions, monthKey, exchangeRate = 1) => {
   let income = 0;
   let expenses = 0;
@@ -135,7 +138,7 @@ export const calculateMonthlySummary = (transactions, monthKey, exchangeRate = 1
 
   filtered.forEach((tx) => {
     const amount = tx.currency === 'USD' ? tx.amount * exchangeRate : tx.amount;
-
+    
     if (tx.type === 'income') income += amount;
     if (tx.type === 'expense') {
       expenses += amount;
@@ -176,9 +179,8 @@ export const calculateBaselineVsActual = (baseline, transactions, monthKey, type
   }));
 };
 
-// ── Historical Trend Calculation ─
-// V2 UPDATE: Added 'goals' parameter so historical net worth includes virtual goal assets
 // ── Historical Trend Calculation ──
+// V2 UPDATE: Added 'goals' parameter so historical net worth includes virtual goal assets
 export const calculateHistoricalTrend = (allTransactions, accounts, exchangeRate, goals = []) => {
   const trendData = [];
   const today = new Date();
@@ -186,7 +188,7 @@ export const calculateHistoricalTrend = (allTransactions, accounts, exchangeRate
   for (let i = 5; i >= 0; i--) {
     const targetDate = new Date(today.getFullYear(), today.getMonth() - i, 1);
     const monthName = targetDate.toLocaleString('default', { month: 'short' });
-    
+
     // FIX: Calculate the last day of the month
     const lastDayOfMonth = new Date(targetDate.getFullYear(), targetDate.getMonth() + 1, 0);
     
@@ -195,12 +197,11 @@ export const calculateHistoricalTrend = (allTransactions, accounts, exchangeRate
     const month = String(lastDayOfMonth.getMonth() + 1).padStart(2, '0');
     const day = String(lastDayOfMonth.getDate()).padStart(2, '0');
     const lastDayKey = `${year}-${month}-${day}`;
-    
+
     const historicalTxs = allTransactions.filter(tx => tx.date <= lastDayKey);
     
     // Pass the historical date and goals into the math engine
     const snapshot = calculateNetWorth(historicalTxs, accounts || [], exchangeRate, lastDayKey, goals);
-
     trendData.push({ month: monthName, value: snapshot.total });
   }
 
