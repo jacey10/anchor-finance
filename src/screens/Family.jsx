@@ -96,8 +96,9 @@ export default function Family() {
     const person = people.find(p => p.name === tx.category);
     
     if (person) {
+      const entryMonth = tx.date.slice(0, 7);
       const alreadyGiven = transactions
-        .filter(t => t.person === person.name && t.date.startsWith(new Date().toISOString().slice(0, 7)))
+        .filter(t => (t.person || t.category) === person.name && t.date.startsWith(entryMonth))
         .reduce((sum, t) => sum + t.amount, 0);
       
       if (alreadyGiven + tx.amount > person.budget) {
