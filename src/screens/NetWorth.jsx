@@ -1,16 +1,24 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { LineChart, Line, ResponsiveContainer, XAxis, YAxis, Tooltip } from 'recharts';
 import { getTransactions, getAccounts, getSetting, addAccount, deleteAccount, getGoals, addTransaction, deleteTransaction } from '../lib/storage';
 import { calculateNetWorth } from '../lib/calculations';
 import { formatNaira, formatUSD } from '../lib/format';
 import Modal from '../components/Modal';
 import TransactionRow from '../components/TransactionRow';
+import MonthPicker from '../components/MonthPicker';
+
+// Local-time 'YYYY-MM' (avoids the UTC shift that toISOString can cause near month end)
+const getCurrentMonthKey = () => {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+};
 
 export default function NetWorth() {
   const [data, setData] = useState({ total: 0, ngn: 0, usd: 0, goalBalance: 0, accounts: [] });
   const [exchangeRate, setExchangeRate] = useState(1);
   const [activeTab, setActiveTab] = useState('summary');
   const [transfers, setTransfers] = useState([]);
+  const [feeMonth, setFeeMonth] = useState(getCurrentMonthKey());
   const [showAddModal, setShowAddModal] = useState(false);
   const [newAccountForm, setNewAccountForm] = useState({ name: '', currency: 'NGN', starting_balance: '', starting_balance_date: new Date().toISOString().slice(0, 10) });
   const [formError, setFormError] = useState('');
@@ -165,6 +173,33 @@ export default function NetWorth() {
   const convertedAmount = isCrossCurrency && transferForm.amount ? (fromAccount.currency === 'NGN' ? Number(transferForm.amount) / exchangeRate : Number(transferForm.amount) * exchangeRate) : null;
   const filteredAccounts = data.accounts?.filter(acc => activeTab === 'ngn' ? acc.currency === 'NGN' : acc.currency === 'USD') || [];
 
+  // Transfers & Fees tab: rows for the selected month + sum of bank charges only.
+  // Charges = standalone 'bank_fee' amounts + the `fee` charged on 'transfer' rows
+  // (the transfer amounts themselves are never counted).
+  const monthTransfers = useMemo(
+    () => transfers.filter(tx => tx.date.startsWith(feeMonth)),
+    [transfers, feeMonth]
+  );
+
+  const monthFees = useMemo(() => {
+    let ngn = 0;
+    let usd = 0;
+    let count = 0;
+
+    monthTransfers.forEach(tx => {
+      let charge = 0;
+      if (tx.type === 'bank_fee') charge = Number(tx.amount) || 0;
+      else if (tx.type === 'transfer') charge = Number(tx.fee) || 0;
+      if (charge <= 0) return;
+
+      count += 1;
+      if (tx.currency === 'USD') usd += charge;
+      else ngn += charge;
+    });
+
+    return { ngn, usd, count, total: ngn + usd * exchangeRate };
+  }, [monthTransfers, exchangeRate]);
+
   return (
     <div className="screen">
       <h1 className="screen-title">Net Worth</h1>
@@ -230,8 +265,21 @@ export default function NetWorth() {
 
       {activeTab === 'transfers' && (
         <>
+          <MonthPicker currentMonth={feeMonth} onChange={setFeeMonth} />
+
+          {monthFees.total > 0 && (
+            <div className="goal-summary-banner" style={{ marginTop: 16, marginBottom: 16, padding: '12px 16px', background: 'rgba(184, 147, 95, 0.1)', borderRadius: 8, border: '1px solid var(--accent-gold)', color: 'var(--accent-gold)', fontWeight: 600, fontSize: 14 }}>
+              🏦 Bank charges this month: {formatNaira(monthFees.total)}
+              {monthFees.usd > 0 && (
+                <span style={{ display: 'block', marginTop: 4, fontSize: 12, fontWeight: 'normal' }}>
+                  includes {formatUSD(monthFees.usd)} at today's rate
+                </span>
+              )}
+            </div>
+          )}
+
           <div className="list-wrap">
-            {transfers.length === 0 ? <p className="hint-text">No transfers or bank fees logged yet.</p> : transfers.map(tx => (
+            {monthTransfers.length === 0 ? <p className="hint-text">No transfers or bank fees logged for this month.</p> : monthTransfers.map(tx => (
               <TransactionRow key={tx.id} transaction={tx} onDelete={handleDeleteTransfer} />
             ))}
           </div>
