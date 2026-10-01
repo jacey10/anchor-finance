@@ -3,10 +3,12 @@ import { supabase } from '../lib/supabase';
 import { getPeople, getTransactions, addTransaction, deleteTransaction, getAccounts } from '../lib/storage'; // V2 UPDATE: Added getAccounts
 import BaselineTab from '../components/BaselineTab';
 import LogTab from '../components/LogTab';
+import MonthPicker from '../components/MonthPicker';
 import OverageWarning from '../components/OverageWarning';
 
 export default function Family() {
   const [tab, setTab] = useState('budget');
+  const [currentMonth, setCurrentMonth] = useState(new Date().toISOString().slice(0, 7));
   const [people, setPeople] = useState([]);
   const [familyTypes, setFamilyTypes] = useState([]);
   const [transactions, setTransactions] = useState([]);
@@ -150,6 +152,8 @@ export default function Family() {
     setTransactions(newTxs);
   };
 
+  const monthTransactions = transactions.filter(tx => tx.date.startsWith(currentMonth));
+
   if (loading) {
     return (
       <div className="screen">
@@ -204,7 +208,17 @@ export default function Family() {
         >
           Given
         </button>
+        <button 
+          className={`tab-button ${tab === 'variance' ? 'active' : ''}`} 
+          onClick={() => setTab('variance')}
+        >
+          Variance
+        </button>
       </div>
+
+      {tab !== 'budget' && (
+        <MonthPicker currentMonth={currentMonth} onChange={setCurrentMonth} />
+      )}
 
       {tab === 'budget' ? (
         <div>
@@ -224,15 +238,31 @@ export default function Family() {
             onDelete={handleDeleteMember}
           />
         </div>
-      ) : (
+      ) : tab === 'given' ? (
         <LogTab 
+          view="entries"
           allTransactions={transactions}
-          filteredTransactions={transactions} 
-          currentMonth={new Date().toISOString().slice(0, 7)}
+          filteredTransactions={monthTransactions} 
+          currentMonth={currentMonth}
           categories={people.map(p => ({ name: p.name, baseline: p.budget }))} 
           familyTypes={familyTypes} 
           goals={[]}
           accounts={accounts} // V2 UPDATE: Pass accounts to LogTab
+          type="family_support" 
+          onAdd={handleAdd} 
+          onDelete={handleDelete}
+          onBeforeAdd={handleBeforeAdd}
+        />
+      ) : (
+        <LogTab 
+          view="variance"
+          allTransactions={transactions}
+          filteredTransactions={monthTransactions} 
+          currentMonth={currentMonth}
+          categories={people.map(p => ({ name: p.name, baseline: p.budget }))} 
+          familyTypes={familyTypes} 
+          goals={[]}
+          accounts={accounts}
           type="family_support" 
           onAdd={handleAdd} 
           onDelete={handleDelete}
