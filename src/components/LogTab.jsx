@@ -13,7 +13,9 @@ export default function LogTab({
   type,
   onAdd,
   onDelete,
-  onBeforeAdd
+  onBeforeAdd,
+  view = 'all', // 'all' (original layout) | 'entries' | 'variance'
+  filterSlot = null // optional node rendered between the goal banner and Recent Entries
 }) {
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState({
@@ -94,46 +96,59 @@ export default function LogTab({
     setShowForm(false);
   };
 
+  const showVariance = view === 'all' || view === 'variance';
+  const showEntries = view === 'all' || view === 'entries';
+
   return (
     <div className="log-tab">
-      <h2 className="section-title">Actual vs. Baseline</h2>
-      <div className="list-wrap">
-        {categories.map(c => {
-          const actual = byCategory[c.name] || 0;
-          const base = c.baseline || 0;
-          const over = actual > base;
-          return (
-            <div key={c.name} className="list-row">
-              <div className="list-row-content">
-                <div className="list-row-title">{c.name}</div>
-                <div className="list-row-meta">baseline {formatNaira(base)}</div>
-              </div>
-              <div className={`list-row-amount ${over ? 'text-danger' : ''}`}>
-                {formatNaira(actual)}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
-      {/* V2 FIX: Restored the Goal Summary Banner */}
-      {goalFundedTotal > 0 && (
-        <div className="goal-summary-banner" style={{ marginTop: 16, padding: '12px 16px', background: 'rgba(184, 147, 95, 0.1)', borderRadius: 8, border: '1px solid var(--accent-gold)', color: 'var(--accent-gold)', fontWeight: 600, fontSize: 14 }}>
-          🎯 Goal-funded spending this month: {formatNaira(goalFundedTotal)}
-        </div>
+      {showVariance && (
+        <>
+          <h2 className="section-title">Actual vs. Baseline</h2>
+          <div className="list-wrap">
+            {categories.map(c => {
+              const actual = byCategory[c.name] || 0;
+              const base = c.baseline || 0;
+              const over = actual > base;
+              return (
+                <div key={c.name} className="list-row">
+                  <div className="list-row-content">
+                    <div className="list-row-title">{c.name}</div>
+                    <div className="list-row-meta">baseline {formatNaira(base)}</div>
+                  </div>
+                  <div className={`list-row-amount ${over ? 'text-danger' : ''}`}>
+                    {formatNaira(actual)}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </>
       )}
 
-      <h2 className="section-title" style={{ marginTop: 32 }}>Recent Entries</h2>
-      <div className="list-wrap">
-        {filteredTransactions.length === 0 && (
-          <p className="hint-text">Nothing logged in this period.</p>
-        )}
-        {filteredTransactions.map(tx => (
-          <TransactionRow key={tx.id} transaction={tx} onDelete={onDelete} />
-        ))}
-      </div>
+      {showEntries && (
+        <>
+          {/* V2 FIX: Restored the Goal Summary Banner */}
+          {goalFundedTotal > 0 && (
+            <div className="goal-summary-banner" style={{ marginTop: 16, marginBottom: 16, padding: '12px 16px', background: 'rgba(184, 147, 95, 0.1)', borderRadius: 8, border: '1px solid var(--accent-gold)', color: 'var(--accent-gold)', fontWeight: 600, fontSize: 14 }}>
+              🎯 Goal-funded spending this month: {formatNaira(goalFundedTotal)}
+            </div>
+          )}
 
-      {showForm ? (
+          {filterSlot}
+
+          <h2 className="section-title" style={{ marginTop: view === 'all' ? 32 : 20 }}>Recent Entries</h2>
+          <div className="list-wrap">
+            {filteredTransactions.length === 0 && (
+              <p className="hint-text">Nothing logged in this period.</p>
+            )}
+            {filteredTransactions.map(tx => (
+              <TransactionRow key={tx.id} transaction={tx} onDelete={onDelete} />
+            ))}
+          </div>
+        </>
+      )}
+
+      {showEntries && (showForm ? (
         <form onSubmit={handleSubmit} className="form-card">
           <label className="form-label">
             Category / Person
@@ -307,7 +322,7 @@ export default function LogTab({
         <button onClick={() => setShowForm(true)} className="btn btn-outline" style={{ marginTop: 20 }}>
           + Add New Entry
         </button>
-      )}
+      ))}
     </div>
   );
 }

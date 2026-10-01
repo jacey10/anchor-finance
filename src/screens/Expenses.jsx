@@ -81,7 +81,14 @@ export default function Expenses() {
     if (error) { console.error('Error updating baseline:', error.message); alert('Failed to save budget to database.'); }
   };
 
+  // Changing month clears the date range so it can't point at a different month
+  const handleMonthChange = (month) => {
+    setCurrentMonth(month);
+    setDateFilter({ start: '', end: '' });
+  };
+
   const filteredTransactions = transactions.filter(tx => {
+    if (!tx.date.startsWith(currentMonth)) return false;
     if (!dateFilter.start && !dateFilter.end) return true;
     const txDate = new Date(tx.date);
     const start = dateFilter.start ? new Date(dateFilter.start) : new Date('1970-01-01');
@@ -96,8 +103,11 @@ export default function Expenses() {
       <div className="tab-row">
         <button className={`tab-button ${tab === 'baseline' ? 'active' : ''}`} onClick={() => setTab('baseline')}>Baseline</button>
         <button className={`tab-button ${tab === 'log' ? 'active' : ''}`} onClick={() => setTab('log')}>Log</button>
+        <button className={`tab-button ${tab === 'variance' ? 'active' : ''}`} onClick={() => setTab('variance')}>Variance</button>
       </div>
-      <MonthPicker currentMonth={currentMonth} onChange={setCurrentMonth} />
+      {tab !== 'baseline' && (
+        <MonthPicker currentMonth={currentMonth} onChange={handleMonthChange} />
+      )}
       {tab === 'baseline' ? (
         <BaselineTab 
           items={categories.map(c => ({ key: c.name, name: c.name, value: c.baseline || 0 }))} 
@@ -108,29 +118,43 @@ export default function Expenses() {
           addButtonText="+ Add Expense Category"
           onDelete={handleDeleteCategory}
         />
+      ) : tab === 'log' ? (
+        <LogTab 
+          view="entries"
+          allTransactions={transactions} 
+          filteredTransactions={filteredTransactions} 
+          categories={categories} 
+          goals={goals}
+          accounts={accounts}
+          currentMonth={currentMonth}
+          type="expense" 
+          onAdd={handleAdd} 
+          onDelete={handleDelete} 
+          filterSlot={
+            <div className="form-card" style={{ marginBottom: 20, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-end', gap: 12 }}>
+              <label className="form-label" style={{ flex: 1, minWidth: 120 }}>Date From
+                <input type="date" value={dateFilter.start} onChange={(e) => setDateFilter({...dateFilter, start: e.target.value})} className="form-input" />
+              </label>
+              <label className="form-label" style={{ flex: 1, minWidth: 120 }}>Date To
+                <input type="date" value={dateFilter.end} onChange={(e) => setDateFilter({...dateFilter, end: e.target.value})} className="form-input" />
+              </label>
+              <button className="btn btn-ghost" onClick={() => setDateFilter({ start: '', end: '' })} style={{ height: 42 }}>Clear Filter</button>
+            </div>
+          }
+        />
       ) : (
-        <div>
-          <div className="form-card" style={{ marginBottom: 20, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-end', gap: 12 }}>
-            <label className="form-label" style={{ flex: 1, minWidth: 120 }}>Date From
-              <input type="date" value={dateFilter.start} onChange={(e) => setDateFilter({...dateFilter, start: e.target.value})} className="form-input" />
-            </label>
-            <label className="form-label" style={{ flex: 1, minWidth: 120 }}>Date To
-              <input type="date" value={dateFilter.end} onChange={(e) => setDateFilter({...dateFilter, end: e.target.value})} className="form-input" />
-            </label>
-            <button className="btn btn-ghost" onClick={() => setDateFilter({ start: '', end: '' })} style={{ height: 42 }}>Clear Filter</button>
-          </div>
-          <LogTab 
-            allTransactions={transactions} 
-            filteredTransactions={filteredTransactions} 
-            categories={categories} 
-            goals={goals}
-            accounts={accounts}
-            currentMonth={currentMonth}
-            type="expense" 
-            onAdd={handleAdd} 
-            onDelete={handleDelete} 
-          />
-        </div>
+        <LogTab 
+          view="variance"
+          allTransactions={transactions} 
+          filteredTransactions={filteredTransactions} 
+          categories={categories} 
+          goals={goals}
+          accounts={accounts}
+          currentMonth={currentMonth}
+          type="expense" 
+          onAdd={handleAdd} 
+          onDelete={handleDelete} 
+        />
       )}
     </div>
   );
