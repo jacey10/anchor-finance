@@ -165,9 +165,11 @@ export default function Income() {
         ))}
       </div>
 
-      <button onClick={() => setShowForm(!showForm)} className="btn btn-outline" style={{ marginTop: 20 }}>
-        {showForm ? 'Cancel' : '+ Add Income'}
-      </button>
+      {!showForm && (
+        <button onClick={() => setShowForm(true)} className="btn btn-outline" style={{ marginTop: 20 }}>
+          + Add Income
+        </button>
+      )}
 
       {showForm && (
         <form onSubmit={handleAdd} className="form-card">
