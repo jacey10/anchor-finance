@@ -11,6 +11,7 @@ import {
 } from '../lib/storage';
 import { formatNaira } from '../lib/format';
 import TransactionRow from '../components/TransactionRow';
+import MonthPicker from '../components/MonthPicker';
 
 export default function Income() {
   const [transactions, setTransactions] = useState([]);
@@ -19,6 +20,7 @@ export default function Income() {
   const [exchangeRate, setExchangeRate] = useState(1);
   const [activeTab, setActiveTab] = useState('all'); // 'all', 'ngn', 'usd'
   const [showForm, setShowForm] = useState(false);
+  const [currentMonth, setCurrentMonth] = useState(new Date().toISOString().slice(0, 7));
   
   const [formData, setFormData] = useState({
     source: '',
@@ -110,6 +112,7 @@ export default function Income() {
     
     const newTxs = await getTransactions({ type: 'income' });
     setTransactions(newTxs);
+    setCurrentMonth(formData.date.slice(0, 7)); // show the month the entry was saved in
     setShowForm(false);
     setFormData(prev => ({ ...prev, amount: '', note: '', account_id: '' }));
   };
@@ -119,8 +122,9 @@ export default function Income() {
     setTransactions(transactions.filter(t => t.id !== id));
   };
 
-  // Filter transactions based on active tab
+  // Filter transactions by selected month, then by active currency tab
   const displayTransactions = transactions.filter(tx => {
+    if (!tx.date.startsWith(currentMonth)) return false;
     if (activeTab === 'all') return true;
     return tx.currency === activeTab.toUpperCase();
   });
@@ -150,9 +154,11 @@ export default function Income() {
         ))}
       </div>
 
-      <div className="list-wrap">
+      <MonthPicker currentMonth={currentMonth} onChange={setCurrentMonth} />
+
+      <div className="list-wrap" style={{ marginTop: 16 }}>
         {displayTransactions.length === 0 && (
-          <p className="hint-text">No income logged for this filter.</p>
+          <p className="hint-text">No income logged for this month.</p>
         )}
         {displayTransactions.map(tx => (
           <TransactionRow key={tx.id} transaction={tx} onDelete={handleDelete} />
