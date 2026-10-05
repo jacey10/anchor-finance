@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { getPeople, getTransactions, addTransaction, deleteTransaction, getAccounts, getGoals } from '../lib/storage'; // UPDATED: Added getGoals
+import { getPeople, getTransactions, addTransaction, deleteTransaction, getAccounts, getGoals, getSetting } from '../lib/storage'; // UPDATED: Added getGoals, getSetting
+import { calculateNetWorth } from '../lib/calculations'; // ADDED: For live balance calculation
 import BaselineTab from '../components/BaselineTab';
 import LogTab from '../components/LogTab';
 import MonthPicker from '../components/MonthPicker';
@@ -12,7 +13,7 @@ export default function Family() {
   const [people, setPeople] = useState([]);
   const [familyTypes, setFamilyTypes] = useState([]);
   const [transactions, setTransactions] = useState([]);
-  const [goals, setGoals] = useState([]); // ADDED: Goals state
+  const [goals, setGoals] = useState([]);
   const [accounts, setAccounts] = useState([]);
   const [warning, setWarning] = useState(null);
   const [pendingTx, setPendingTx] = useState(null);
@@ -22,18 +23,22 @@ export default function Family() {
     const loadData = async () => {
       setLoading(true);
       
-      const [ppl, txs, accs, gls, { data: typesData }] = await Promise.all([ // UPDATED: Added goals fetch
+      const [ppl, allTxs, txs, accs, gls, rate, { data: typesData }] = await Promise.all([
         getPeople(),
+        getTransactions(), // ADDED: Fetch all transactions for balance calculation
         getTransactions({ type: 'family_support' }),
         getAccounts(),
-        getGoals(), // ADDED: Fetch goals
+        getGoals(),
+        getSetting('exchange_rate'),
         supabase.from('family_types').select('*').order('name')
       ]);
       
+      const netWorthData = calculateNetWorth(allTxs, accs, rate || 1, null, gls);
+
       setPeople(ppl);
       setTransactions(txs);
-      setAccounts(accs);
-      setGoals(gls); // ADDED: Set goals
+      setAccounts(netWorthData.accounts); // UPDATED: Use calculated accounts
+      setGoals(gls);
       setFamilyTypes(typesData || []);
       setLoading(false);
     };
@@ -90,8 +95,20 @@ export default function Family() {
 
   const handleAdd = async (tx) => {
     await addTransaction({ ...tx, type: 'family_support' });
-    const newTxs = await getTransactions({ type: 'family_support' });
-    setTransactions(newTxs);
+    const [ppl, allTxs, txs, accs, gls, rate] = await Promise.all([
+      getPeople(),
+      getTransactions(),
+      getTransactions({ type: 'family_support' }),
+      getAccounts(),
+      getGoals(),
+      getSetting('exchange_rate')
+    ]);
+    const netWorthData = calculateNetWorth(allTxs, accs, rate || 1, null, gls);
+
+    setPeople(ppl);
+    setTransactions(txs);
+    setAccounts(netWorthData.accounts);
+    setGoals(gls);
   };
 
   const handleBeforeAdd = (tx) => {
@@ -142,8 +159,20 @@ export default function Family() {
   const handleConfirmOverage = async () => {
     if (pendingTx) {
       await addTransaction({ ...pendingTx, type: 'family_support' });
-      const newTxs = await getTransactions({ type: 'family_support' });
-      setTransactions(newTxs);
+      const [ppl, allTxs, txs, accs, gls, rate] = await Promise.all([
+        getPeople(),
+        getTransactions(),
+        getTransactions({ type: 'family_support' }),
+        getAccounts(),
+        getGoals(),
+        getSetting('exchange_rate')
+      ]);
+      const netWorthData = calculateNetWorth(allTxs, accs, rate || 1, null, gls);
+
+      setPeople(ppl);
+      setTransactions(txs);
+      setAccounts(netWorthData.accounts);
+      setGoals(gls);
       setPendingTx(null);
       setWarning(null);
     }
@@ -151,8 +180,18 @@ export default function Family() {
 
   const handleDelete = async (id) => {
     await deleteTransaction(id);
-    const newTxs = await getTransactions({ type: 'family_support' });
-    setTransactions(newTxs);
+    const [allTxs, txs, accs, gls, rate] = await Promise.all([
+      getTransactions(),
+      getTransactions({ type: 'family_support' }),
+      getAccounts(),
+      getGoals(),
+      getSetting('exchange_rate')
+    ]);
+    const netWorthData = calculateNetWorth(allTxs, accs, rate || 1, null, gls);
+
+    setTransactions(txs);
+    setAccounts(netWorthData.accounts);
+    setGoals(gls);
   };
 
   const monthTransactions = transactions.filter(tx => tx.date.startsWith(currentMonth));
@@ -174,7 +213,7 @@ export default function Family() {
         <h1 className="screen-title">Family Support</h1>
         <p className="screen-sub">What you can give this month, by person.</p>
         <div className="empty-state">
-          <div className="empty-icon">‍👩‍‍👦</div>
+          <div className="empty-icon">👨‍👩‍👧‍👦</div>
           <h3 className="empty-title">No family members added yet</h3>
           <p className="empty-subtitle">
             Use this space to track financial support for parents, siblings, or children. 
@@ -249,7 +288,7 @@ export default function Family() {
           currentMonth={currentMonth}
           categories={people.map(p => ({ name: p.name, baseline: p.budget }))} 
           familyTypes={familyTypes} 
-          goals={goals} // UPDATED: Pass actual goals instead of []
+          goals={goals}
           accounts={accounts}
           type="family_support" 
           onAdd={handleAdd} 
@@ -264,7 +303,7 @@ export default function Family() {
           currentMonth={currentMonth}
           categories={people.map(p => ({ name: p.name, baseline: p.budget }))} 
           familyTypes={familyTypes} 
-          goals={goals} // UPDATED: Pass actual goals instead of []
+          goals={goals}
           accounts={accounts}
           type="family_support" 
           onAdd={handleAdd} 

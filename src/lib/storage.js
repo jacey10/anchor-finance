@@ -70,8 +70,8 @@ export const addTransaction = async (tx) => {
   }]).select().single();
   if (error) throw error;
 
-  // V2 FIX: If expense is funded by a goal, deduct from goal's current balance
-  if (tx.type === 'expense' && tx.goal_id) {
+  // V2 FIX: If expense or family_support is funded by a goal, deduct from goal's current balance
+  if ((tx.type === 'expense' || tx.type === 'family_support') && tx.goal_id) {
     const { data: goal, error: goalFetchError } = await supabase.from('goals').select('current').eq('id', tx.goal_id).single();
     if (goalFetchError && goalFetchError.code !== 'PGRST116') throw goalFetchError;
     if (goal) {
@@ -96,8 +96,8 @@ export const deleteTransaction = async (id) => {
   const { data: tx, error: fetchError } = await supabase.from('transactions').select('goal_id, amount, type').eq('id', id).single();
   if (fetchError) throw fetchError;
 
-  // V2 FIX: If deleted expense was funded by a goal, ADD the amount back
-  if (tx && tx.type === 'expense' && tx.goal_id) {
+  // V2 FIX: If deleted expense or family_support was funded by a goal, ADD the amount back
+  if (tx && (tx.type === 'expense' || tx.type === 'family_support') && tx.goal_id) {
     const { data: goal, error: goalFetchError } = await supabase.from('goals').select('current').eq('id', tx.goal_id).single();
     if (goalFetchError && goalFetchError.code !== 'PGRST116') throw goalFetchError;
     if (goal) {
