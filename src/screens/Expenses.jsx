@@ -52,7 +52,7 @@ export default function Expenses() {
   };
 
   const handleAdd = async (tx) => {
-    await addTransaction({ ...tx, type: 'expense' });
+    await addTransaction({ ...tx, type: tx.type || 'expense' });
     
     const [allTxs, expenseTxs, newGoals, newAccs, rate] = await Promise.all([
       getTransactions(), 

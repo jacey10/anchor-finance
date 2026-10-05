@@ -3,6 +3,7 @@ import { formatNaira, formatUSD } from '../lib/format';
 import TransactionRow from './TransactionRow';
 import Pagination from './Pagination';
 import usePagination from '../lib/usePagination';
+import WithdrawalModal from './WithdrawalModal'; // V3 NEW: Reusable withdrawal modal
 
 export default function LogTab({
   allTransactions,
@@ -33,6 +34,12 @@ export default function LogTab({
     goal_id: ''
   });
 
+  // V3 NEW: Inline intercept and withdrawal state
+  const [showIntercept, setShowIntercept] = useState(false);
+  const [isWithdrawing, setIsWithdrawing] = useState(false);
+  const [withdrawalAmount, setWithdrawalAmount] = useState('');
+  const [withdrawalDate, setWithdrawalDate] = useState(new Date().toISOString().slice(0, 10));
+
   // Pagination: 7 entries per page
   const pager = usePagination(filteredTransactions, pageResetKey ?? currentMonth);
 
@@ -56,6 +63,39 @@ export default function LogTab({
       .reduce((sum, tx) => sum + tx.amount, 0);
   }, [monthlyTransactions]);
 
+  // V3 NEW: Helper to submit expense, bypassing intercept if needed
+  const submitExpense = (finalFormData) => {
+    const parsed = Number(finalFormData.amount);
+    if (!parsed || parsed <= 0) return;
+
+    if (onBeforeAdd) {
+      const shouldProceed = onBeforeAdd({ ...finalFormData, amount: parsed });
+      if (!shouldProceed) return;
+    }
+
+    onAdd({
+      ...finalFormData,
+      amount: parsed,
+      type,
+      support_type: finalFormData.support_type || null,
+      impulse: finalFormData.impulse || false,
+      account_id: finalFormData.sourceType === 'bank' ? finalFormData.account_id : null,
+      goal_id: finalFormData.sourceType === 'goal' ? finalFormData.goal_id : null,
+      is_goal_execution: finalFormData.sourceType === 'goal' ? true : false // V3 NEW
+    });
+
+    setFormData({ 
+      ...formData, 
+      amount: '', 
+      note: '', 
+      support_type: '', 
+      account_id: '', 
+      goal_id: '' 
+    });
+    setShowForm(false);
+    setShowIntercept(false);
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
     const parsed = Number(formData.amount);
@@ -76,30 +116,13 @@ export default function LogTab({
       }
     }
 
-    if (onBeforeAdd) {
-      const shouldProceed = onBeforeAdd({ ...formData, amount: parsed });
-      if (!shouldProceed) return;
+    // V3 NEW: Inline Intercept for Goal Expenses
+    if (formData.sourceType === 'goal' && formData.goal_id && !showIntercept) {
+      setShowIntercept(true);
+      return; // Stop submission, show intercept
     }
 
-    onAdd({
-      ...formData,
-      amount: parsed,
-      type,
-      support_type: formData.support_type || null,
-      impulse: formData.impulse || false,
-      account_id: formData.sourceType === 'bank' ? formData.account_id : null,
-      goal_id: formData.sourceType === 'goal' ? formData.goal_id : null
-    });
-
-    setFormData({ 
-      ...formData, 
-      amount: '', 
-      note: '', 
-      support_type: '', 
-      account_id: '', 
-      goal_id: '' 
-    });
-    setShowForm(false);
+    submitExpense(formData);
   };
 
   const showVariance = view === 'all' || view === 'variance';
@@ -190,7 +213,7 @@ export default function LogTab({
                 <button
                   key={source}
                   type="button"
-                  onClick={() => setFormData({ ...formData, sourceType: source, account_id: '', goal_id: '' })}
+                  onClick={() => setFormData({ ...formData, sourceType: source, account_id: '', goal_id: '', is_goal_execution: false })}
                   style={{
                     flex: 1,
                     padding: '10px 0',
@@ -322,11 +345,112 @@ export default function LogTab({
             </label>
           )}
 
+          {/* V3 NEW: Inline Intercept UI */}
+          {showIntercept && formData.sourceType === 'goal' && formData.goal_id && (
+            <div className="intercept-box" style={{
+              background: 'rgba(184, 147, 95, 0.1)',
+              border: '1px solid var(--accent-gold)',
+              borderRadius: 8,
+              padding: 16,
+              marginBottom: 16,
+              position: 'relative',
+              animation: 'fadeSlideIn 0.25s ease'
+            }}>
+              <button 
+                type="button"
+                onClick={() => setShowIntercept(false)} 
+                style={{ 
+                  position: 'absolute', 
+                  top: 8, 
+                  right: 8, 
+                  background: 'none', 
+                  border: 'none', 
+                  color: 'var(--text-muted)', 
+                  cursor: 'pointer',
+                  fontSize: 16,
+                  padding: 0,
+                  lineHeight: 1
+                }}
+              >
+                ✕
+              </button>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                <span style={{ fontSize: 18 }}>⚠️</span>
+                <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--accent-gold)' }}>Is this for the goal itself?</span>
+              </div>
+              <div style={{ fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.5, marginBottom: 12 }}>
+                You're spending <strong style={{ color: 'var(--text-primary)' }}>{formatNaira(Number(formData.amount) || 0)}</strong> from <strong style={{ color: 'var(--text-primary)' }}>{goals.find(g => String(g.id) === String(formData.goal_id))?.name}</strong>.
+                Is this payment for the goal's intended purpose?
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <button 
+                  type="button"
+                  onClick={() => submitExpense({ ...formData, is_goal_execution: true })}
+                  style={{
+                    padding: '10px 14px',
+                    borderRadius: 6,
+                    border: 'none',
+                    fontWeight: 600,
+                    fontSize: 13,
+                    cursor: 'pointer',
+                    textAlign: 'left',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    background: 'var(--accent-gold)',
+                    color: '#ffffff'
+                  }}
+                >
+                  <span style={{ fontSize: 16 }}>✅</span>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                    <span>Yes, this is for the goal</span>
+                    <span style={{ fontSize: 11, fontWeight: 400, opacity: 0.8 }}>Deducts from goal and counts as execution</span>
+                  </div>
+                </button>
+                <button 
+                  type="button"
+                  onClick={() => {
+                    const goal = goals.find(g => String(g.id) === String(formData.goal_id));
+                    const cappedAmount = Math.min(Number(formData.amount), Number(goal?.current || 0));
+                    setWithdrawalAmount(cappedAmount);
+                    setWithdrawalDate(formData.date);
+                    setIsWithdrawing(true);
+                  }}
+                  style={{
+                    padding: '10px 14px',
+                    borderRadius: 6,
+                    border: '1px solid var(--border-color)',
+                    fontWeight: 600,
+                    fontSize: 13,
+                    cursor: 'pointer',
+                    textAlign: 'left',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    background: 'var(--bg-secondary)',
+                    color: 'var(--text-primary)'
+                  }}
+                >
+                  <span style={{ fontSize: 16 }}>🏦</span>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                    <span>No, withdraw first</span>
+                    <span style={{ fontSize: 11, fontWeight: 400, color: 'var(--text-muted)' }}>Move money to bank, then log as regular expense</span>
+                  </div>
+                </button>
+              </div>
+            </div>
+          )}
+
           <div className="form-actions">
-            <button type="button" className="btn btn-ghost" onClick={() => setShowForm(false)}>
+            <button type="button" className="btn btn-ghost" onClick={() => { setShowForm(false); setShowIntercept(false); }}>
               Cancel
             </button>
-            <button type="submit" className="btn btn-primary">
+            <button 
+              type="submit" 
+              className="btn btn-primary"
+              disabled={showIntercept && formData.sourceType === 'goal' && formData.goal_id}
+              style={showIntercept && formData.sourceType === 'goal' && formData.goal_id ? { opacity: 0.4, pointerEvents: 'none' } : {}}
+            >
               Log Entry
             </button>
           </div>
@@ -336,6 +460,29 @@ export default function LogTab({
           + Add New Entry
         </button>
       ))}
+
+      {/* V3 NEW: Reusable Withdrawal Modal for Intercept Flow */}
+      {isWithdrawing && formData.goal_id && (
+        <WithdrawalModal
+          goal={goals.find(g => String(g.id) === String(formData.goal_id))}
+          accounts={accounts}
+          isOpen={isWithdrawing}
+          onClose={() => setIsWithdrawing(false)}
+          initialAmount={withdrawalAmount}
+          initialDate={withdrawalDate}
+          onSuccess={(transaction) => {
+            // Auto-submit expense from bank after successful withdrawal
+            setIsWithdrawing(false);
+            setShowIntercept(false);
+            submitExpense({
+              ...formData,
+              sourceType: 'bank',
+              account_id: transaction.account_id, // Pre-select the destination account
+              is_goal_execution: false
+            });
+          }}
+        />
+      )}
     </div>
   );
 }

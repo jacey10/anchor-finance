@@ -10,6 +10,7 @@ import WishlistRow from '../components/WishlistRow';
 import NoteRow from '../components/NoteRow';
 import Modal from '../components/Modal';
 import ConfirmDialog from '../components/ConfirmDialog';
+import WithdrawalModal from '../components/WithdrawalModal';
 import { formatNaira, formatUSD } from '../lib/format';
 import { calculateNetWorth } from '../lib/calculations';
 
@@ -32,12 +33,6 @@ export default function Goals() {
   const [deletingWishId, setDeletingWishId] = useState(null);
   const [deletingNoteId, setDeletingNoteId] = useState(null);
   const [payForm, setPayForm] = useState({
-    amount: '',
-    account_id: '',
-    date: new Date().toISOString().slice(0, 10),
-    note: ''
-  });
-  const [withdrawForm, setWithdrawForm] = useState({
     amount: '',
     account_id: '',
     date: new Date().toISOString().slice(0, 10),
@@ -133,9 +128,16 @@ export default function Goals() {
     setEditingGoal(null);
   };
 
+  // V4 UPDATE: Helper to compute total funding (current + execution) for a goal
+  const getFundingTotal = (goal) => {
+    return (Number(goal.current) || 0) + (Number(goal.execution_total) || 0);
+  };
+
   // ── Pay towards Goal ──
+  // V4 UPDATE: "remaining" now accounts for execution_total to prevent over-funding
   const openPay = (goal) => {
-    const remaining = goal.target - goal.current;
+    const fundingTotal = getFundingTotal(goal);
+    const remaining = Math.max(0, goal.target - fundingTotal);
     setPayForm({
       amount: String(remaining > 0 ? remaining : 0),
       account_id: '',
@@ -148,7 +150,8 @@ export default function Goals() {
   const handlePaySubmit = async (e) => {
     e.preventDefault();
     const amount = Number(payForm.amount);
-    const remaining = payingGoal.target - payingGoal.current;
+    const fundingTotal = getFundingTotal(payingGoal);
+    const remaining = Math.max(0, payingGoal.target - fundingTotal);
 
     if (!amount || amount <= 0 || !payForm.account_id) return;
 
@@ -180,45 +183,13 @@ export default function Goals() {
 
   // ── Withdraw from Goal ──
   const openWithdraw = (goal) => {
-    setWithdrawForm({
-      amount: String(Number(goal.current) || 0),
-      account_id: '',
-      date: new Date().toISOString().slice(0, 10),
-      note: ''
-    });
     setWithdrawingGoal(goal);
   };
 
-  const handleWithdrawSubmit = async (e) => {
-    e.preventDefault();
-    const amount = Number(withdrawForm.amount);
-    const goalBalance = Number(withdrawingGoal.current) || 0;
-
-    if (!amount || amount <= 0) return;
-    if (amount > goalBalance) {
-      alert(`Amount exceeds goal balance. Available: ${formatNaira(goalBalance)}`);
-      return;
-    }
-    if (!withdrawForm.account_id) return;
-
-    await addTransaction({
-      type: 'goal_withdrawal',
-      category: 'Goal Withdrawal',
-      amount: amount,
-      date: withdrawForm.date,
-      note: withdrawForm.note || `Withdrawn from ${withdrawingGoal.name}`,
-      impulse: false,
-      goal_id: withdrawingGoal.id,
-      account_id: withdrawForm.account_id
-    });
-
-    const newCurrent = Math.max(0, goalBalance - amount);
-    await updateGoal(withdrawingGoal.id, { current: newCurrent });
-
+  const handleWithdrawSuccess = async () => {
     await loadGoals();
     await loadAccounts();
     setWithdrawingGoal(null);
-    setWithdrawForm({ amount: '', account_id: '', date: new Date().toISOString().slice(0, 10), note: '' });
   };
 
   // ── Delete with safety guard ──
@@ -272,10 +243,12 @@ export default function Goals() {
     await loadWishlist();
   };
 
-  // ── Filtered goal lists ──
-  const activeGoals = goals.filter(g => g.current < g.target && !g.is_paid);
-  const completedGoals = goals.filter(g => g.current >= g.target && !g.is_paid);
+  // V4 UPDATE: Filter goals based on funding total (not raw current balance)
+  // so fully-funded goals with executions still appear in "Completed"
+  const activeGoals = goals.filter(g => getFundingTotal(g) < g.target && !g.is_paid);
+  const completedGoals = goals.filter(g => getFundingTotal(g) >= g.target && !g.is_paid);
   const achievedGoals = goals.filter(g => g.is_paid);
+
   const wishingItems = wishlistItems.filter(w => w.status === 'wishing');
   const gotItems = wishlistItems.filter(w => w.status === 'got_it');
 
@@ -309,6 +282,7 @@ export default function Goals() {
               <p className="hint-text">No active goals. Add one below!</p>
             )}
           </div>
+
           <button onClick={() => setShowAddForm(!showAddForm)} className="btn btn-outline" style={{ marginTop: '20px' }}>+ Add Goal</button>
           {showAddForm && (
             <form onSubmit={handleAdd} className="form-card">
@@ -375,6 +349,7 @@ export default function Goals() {
               <p className="hint-text">Nothing on your wishlist yet. Add something below!</p>
             )}
           </div>
+
           <button onClick={() => setShowAddWishForm(!showAddWishForm)} className="btn btn-outline" style={{ marginTop: '4px' }}>+ Add to Wishlist</button>
           {showAddWishForm && (
             <form onSubmit={handleAddWish} className="form-card">
@@ -386,6 +361,7 @@ export default function Goals() {
               </div>
             </form>
           )}
+
           {gotItems.length > 0 && (
             <>
               <h2 className="section-title" style={{ marginTop: '32px' }}>Got it</h2>
@@ -410,6 +386,7 @@ export default function Goals() {
               <p className="hint-text">No notes yet. Jot something down below.</p>
             )}
           </div>
+
           <button onClick={() => setShowAddNoteForm(!showAddNoteForm)} className="btn btn-outline" style={{ marginTop: '4px' }}>+ Add Note</button>
           {showAddNoteForm && (
             <form onSubmit={handleAddNote} className="form-card">
@@ -437,6 +414,7 @@ export default function Goals() {
       </Modal>
 
       {/* Pay towards Goal Modal */}
+      {/* V4 UPDATE: max and remaining now use fundingTotal to prevent over-funding */}
       <Modal isOpen={!!payingGoal} onClose={() => setPayingGoal(null)} title={`Pay towards ${payingGoal?.name}`}>
         <form onSubmit={handlePaySubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
           <p style={{ color: 'var(--text-muted)', fontSize: '13px', marginBottom: '8px' }}>
@@ -449,12 +427,12 @@ export default function Goals() {
               value={payForm.amount}
               onChange={e => setPayForm({...payForm, amount: e.target.value})}
               className="form-input"
-              max={Math.max(0, payingGoal?.target - payingGoal?.current)}
+              max={payingGoal ? Math.max(0, payingGoal.target - getFundingTotal(payingGoal)) : 0}
               required
             />
             {payingGoal && (
               <span style={{ fontSize: 12, color: 'var(--accent-gold)', marginTop: 4, display: 'block' }}>
-                Remaining to fund: {formatNaira(Math.max(0, payingGoal.target - payingGoal.current))}
+                Remaining to fund: {formatNaira(Math.max(0, payingGoal.target - getFundingTotal(payingGoal)))}
               </span>
             )}
           </label>
@@ -478,45 +456,14 @@ export default function Goals() {
         </form>
       </Modal>
 
-      {/* Withdraw from Goal Modal */}
-      <Modal isOpen={!!withdrawingGoal} onClose={() => setWithdrawingGoal(null)} title={`Withdraw from ${withdrawingGoal?.name}`}>
-        <form onSubmit={handleWithdrawSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-          <p style={{ color: 'var(--text-muted)', fontSize: '13px', marginBottom: '8px' }}>
-            Move money from this goal back to your bank account. Your total Net Worth will not change.
-          </p>
-          <label className="form-label">
-            Amount to Withdraw
-            <input
-              type="number"
-              value={withdrawForm.amount}
-              onChange={e => setWithdrawForm({...withdrawForm, amount: e.target.value})}
-              className="form-input"
-              max={Number(withdrawingGoal?.current) || 0}
-              required
-            />
-            <span style={{ fontSize: 12, color: 'var(--accent-gold)', marginTop: 4, display: 'block' }}>
-              Available: {formatNaira(Number(withdrawingGoal?.current) || 0)}
-            </span>
-          </label>
-          <label className="form-label">
-            Transfer To Account
-            <select value={withdrawForm.account_id} onChange={(e) => setWithdrawForm({ ...withdrawForm, account_id: e.target.value })} className="form-select" required>
-              <option value="">Select an account</option>
-              {accounts.map(acc => (
-                <option key={acc.id} value={acc.id}>
-                  {acc.name} ({acc.currency === 'NGN' ? `₦${Number(acc.balance).toLocaleString()}` : `$${Number(acc.balance).toLocaleString()}`})
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="form-label">Date<input type="date" value={withdrawForm.date} onChange={e => setWithdrawForm({...withdrawForm, date: e.target.value})} className="form-input" required /></label>
-          <label className="form-label">Note (Optional)<input type="text" value={withdrawForm.note} onChange={e => setWithdrawForm({...withdrawForm, note: e.target.value})} className="form-input" placeholder="e.g. Withdrew remaining balance" /></label>
-          <div className="form-actions">
-            <button type="button" className="btn btn-ghost" onClick={() => setWithdrawingGoal(null)}>Cancel</button>
-            <button type="submit" className="btn btn-primary">Confirm Withdrawal</button>
-          </div>
-        </form>
-      </Modal>
+      {/* V3 UPDATE: Reusable Withdrawal Modal */}
+      <WithdrawalModal
+        goal={withdrawingGoal}
+        accounts={accounts}
+        isOpen={!!withdrawingGoal}
+        onClose={() => setWithdrawingGoal(null)}
+        onSuccess={handleWithdrawSuccess}
+      />
 
       <ConfirmDialog isOpen={!!deletingGoalId} onClose={() => setDeletingGoalId(null)} onConfirm={handleDeleteConfirm} message="Are you sure you want to delete this goal? This cannot be undone." />
       <ConfirmDialog isOpen={!!deletingWishId} onClose={() => setDeletingWishId(null)} onConfirm={handleDeleteWishConfirm} message="Remove this from your wishlist? This cannot be undone." />

@@ -66,19 +66,34 @@ export const addTransaction = async (tx) => {
     currency: tx.currency || 'NGN', note: tx.note || null, date: tx.date,
     recurring: tx.recurring || false, impulse: tx.impulse || false,
     goal_id: tx.goal_id || null, account_id: tx.account_id || null,
-    transfer_to_account_id: tx.transfer_to_account_id || null, fee: Number(tx.fee) || 0
+    transfer_to_account_id: tx.transfer_to_account_id || null, fee: Number(tx.fee) || 0,
+    is_goal_execution: tx.is_goal_execution || false // V3 UPDATE: Pass through the explicit execution flag
   }]).select().single();
   if (error) throw error;
 
-  // V2 FIX: If expense or family_support is funded by a goal, deduct from goal's current balance
-  if ((tx.type === 'expense' || tx.type === 'family_support') && tx.goal_id) {
-    const { data: goal, error: goalFetchError } = await supabase.from('goals').select('current').eq('id', tx.goal_id).single();
+  // V2 FIX / V3 UPDATE: If transaction is explicitly marked as goal execution, deduct from goal's current balance AND increment execution_total
+  if (tx.is_goal_execution === true && tx.goal_id) {
+    const { data: goal, error: goalFetchError } = await supabase.from('goals').select('current, execution_total').eq('id', tx.goal_id).single();
     if (goalFetchError && goalFetchError.code !== 'PGRST116') throw goalFetchError;
     if (goal) {
       const newCurrent = Math.max(0, (goal.current || 0) - tx.amount);
-      const { error: goalUpdateError } = await supabase.from('goals').update({ current: newCurrent }).eq('id', tx.goal_id);
+      const newExecutionTotal = (goal.execution_total || 0) + tx.amount;
+      const { error: goalUpdateError } = await supabase.from('goals').update({ 
+        current: newCurrent,
+        execution_total: newExecutionTotal
+      }).eq('id', tx.goal_id);
       if (goalUpdateError) throw goalUpdateError;
     }
+  }
+
+  // V3 UPDATE: Mark goal as funded when first transfer happens (one-time milestone)
+  // Also reset attention_dismissed so badge can reappear if drained again
+  if (tx.type === 'goal_transfer' && tx.goal_id) {
+    const { error: goalUpdateError } = await supabase.from('goals').update({ 
+      was_funded: true,
+      attention_dismissed: false
+    }).eq('id', tx.goal_id);
+    if (goalUpdateError) throw goalUpdateError;
   }
 
   // NOTE: goal_withdrawal is NOT handled here. The Goals.jsx handler owns the goal.current
@@ -93,16 +108,20 @@ export const updateTransaction = async (id, updates) => {
 };
 
 export const deleteTransaction = async (id) => {
-  const { data: tx, error: fetchError } = await supabase.from('transactions').select('goal_id, amount, type').eq('id', id).single();
+  const { data: tx, error: fetchError } = await supabase.from('transactions').select('goal_id, amount, type, is_goal_execution').eq('id', id).single();
   if (fetchError) throw fetchError;
 
-  // V2 FIX: If deleted expense or family_support was funded by a goal, ADD the amount back
-  if (tx && (tx.type === 'expense' || tx.type === 'family_support') && tx.goal_id) {
-    const { data: goal, error: goalFetchError } = await supabase.from('goals').select('current').eq('id', tx.goal_id).single();
+  // V2 FIX / V3 UPDATE: If deleted transaction was explicitly marked as goal execution, ADD the amount back to current AND decrement execution_total
+  if (tx && tx.is_goal_execution === true && tx.goal_id) {
+    const { data: goal, error: goalFetchError } = await supabase.from('goals').select('current, execution_total').eq('id', tx.goal_id).single();
     if (goalFetchError && goalFetchError.code !== 'PGRST116') throw goalFetchError;
     if (goal) {
       const newCurrent = (goal.current || 0) + tx.amount;
-      const { error: goalUpdateError } = await supabase.from('goals').update({ current: newCurrent }).eq('id', tx.goal_id);
+      const newExecutionTotal = Math.max(0, (goal.execution_total || 0) - tx.amount);
+      const { error: goalUpdateError } = await supabase.from('goals').update({ 
+        current: newCurrent,
+        execution_total: newExecutionTotal
+      }).eq('id', tx.goal_id);
       if (goalUpdateError) throw goalUpdateError;
     }
   }
@@ -142,7 +161,16 @@ export const getGoals = async () => {
 
 export const addGoal = async (goal) => {
   const userId = await getUserId();
-  const { data, error } = await supabase.from('goals').insert([{ user_id: userId, name: goal.name, target: goal.target, current: 0, deadline: goal.deadline || null }]).select().single();
+  const { data, error } = await supabase.from('goals').insert([{ 
+    user_id: userId, 
+    name: goal.name, 
+    target: goal.target, 
+    current: 0, 
+    deadline: goal.deadline || null,
+    was_funded: false,
+    execution_total: 0,
+    attention_dismissed: false
+  }]).select().single();
   if (error) throw error;
   return data;
 };
@@ -159,6 +187,14 @@ export const deleteGoal = async (id) => {
   
   // Then delete the goal itself
   const { error } = await supabase.from('goals').delete().eq('id', id);
+  if (error) throw error;
+};
+
+// V3 NEW: Dismiss "Action Required" badge for a goal
+export const dismissGoalAttention = async (goalId) => {
+  const { error } = await supabase.from('goals')
+    .update({ attention_dismissed: true })
+    .eq('id', goalId);
   if (error) throw error;
 };
 
