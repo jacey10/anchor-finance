@@ -12,6 +12,8 @@ import {
 import { formatNaira } from '../lib/format';
 import TransactionRow from '../components/TransactionRow';
 import MonthPicker from '../components/MonthPicker';
+import Pagination from '../components/Pagination';
+import usePagination from '../lib/usePagination';
 
 export default function Income() {
   const [transactions, setTransactions] = useState([]);
@@ -129,6 +131,9 @@ export default function Income() {
     return tx.currency === activeTab.toUpperCase();
   });
 
+  // Pagination: 7 entries per page, back to page 1 when the month or currency tab changes
+  const pager = usePagination(displayTransactions, `${currentMonth}|${activeTab}`);
+
   const convertedAmount = formData.currency === 'USD' && formData.amount
     ? (Number(formData.amount) * exchangeRate).toLocaleString('en-NG', { maximumFractionDigits: 0 })
     : null;
@@ -160,10 +165,17 @@ export default function Income() {
         {displayTransactions.length === 0 && (
           <p className="hint-text">No income logged for this month.</p>
         )}
-        {displayTransactions.map(tx => (
+        {pager.pageItems.map(tx => (
           <TransactionRow key={tx.id} transaction={tx} onDelete={handleDelete} />
         ))}
       </div>
+
+      <Pagination
+        page={pager.page}
+        totalPages={pager.totalPages}
+        totalItems={pager.totalItems}
+        onChange={pager.setPage}
+      />
 
       {!showForm && (
         <button onClick={() => setShowForm(true)} className="btn btn-outline" style={{ marginTop: 20 }}>

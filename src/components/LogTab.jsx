@@ -1,6 +1,8 @@
 import React, { useState, useMemo } from 'react';
 import { formatNaira, formatUSD } from '../lib/format';
 import TransactionRow from './TransactionRow';
+import Pagination from './Pagination';
+import usePagination from '../lib/usePagination';
 
 export default function LogTab({
   allTransactions,
@@ -15,7 +17,8 @@ export default function LogTab({
   onDelete,
   onBeforeAdd,
   view = 'all', // 'all' (original layout) | 'entries' | 'variance'
-  filterSlot = null // optional node rendered between the goal banner and Recent Entries
+  filterSlot = null, // optional node rendered between the goal banner and Recent Entries
+  pageResetKey // optional: when this changes, Recent Entries goes back to page 1 (defaults to the month)
 }) {
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState({
@@ -29,6 +32,9 @@ export default function LogTab({
     account_id: '',
     goal_id: ''
   });
+
+  // Pagination: 7 entries per page
+  const pager = usePagination(filteredTransactions, pageResetKey ?? currentMonth);
 
   const monthlyTransactions = useMemo(() => {
     return allTransactions.filter(tx => tx.date.startsWith(currentMonth));
@@ -141,10 +147,17 @@ export default function LogTab({
             {filteredTransactions.length === 0 && (
               <p className="hint-text">Nothing logged in this period.</p>
             )}
-            {filteredTransactions.map(tx => (
+            {pager.pageItems.map(tx => (
               <TransactionRow key={tx.id} transaction={tx} onDelete={onDelete} />
             ))}
           </div>
+
+          <Pagination
+            page={pager.page}
+            totalPages={pager.totalPages}
+            totalItems={pager.totalItems}
+            onChange={pager.setPage}
+          />
         </>
       )}
 

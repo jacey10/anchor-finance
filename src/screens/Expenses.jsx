@@ -105,9 +105,7 @@ export default function Expenses() {
         <button className={`tab-button ${tab === 'log' ? 'active' : ''}`} onClick={() => setTab('log')}>Log</button>
         <button className={`tab-button ${tab === 'variance' ? 'active' : ''}`} onClick={() => setTab('variance')}>Variance</button>
       </div>
-      {tab !== 'baseline' && (
-        <MonthPicker currentMonth={currentMonth} onChange={handleMonthChange} />
-      )}
+      <MonthPicker currentMonth={currentMonth} onChange={handleMonthChange} />
       {tab === 'baseline' ? (
         <BaselineTab 
           items={categories.map(c => ({ key: c.name, name: c.name, value: c.baseline || 0 }))} 
@@ -121,6 +119,7 @@ export default function Expenses() {
       ) : tab === 'log' ? (
         <LogTab 
           view="entries"
+          pageResetKey={`${currentMonth}|${dateFilter.start}|${dateFilter.end}`}
           allTransactions={transactions} 
           filteredTransactions={filteredTransactions} 
           categories={categories} 

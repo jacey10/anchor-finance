@@ -6,6 +6,8 @@ import { formatNaira, formatUSD } from '../lib/format';
 import Modal from '../components/Modal';
 import TransactionRow from '../components/TransactionRow';
 import MonthPicker from '../components/MonthPicker';
+import Pagination from '../components/Pagination';
+import usePagination from '../lib/usePagination';
 
 // Local-time 'YYYY-MM' (avoids the UTC shift that toISOString can cause near month end)
 const getCurrentMonthKey = () => {
@@ -200,6 +202,9 @@ export default function NetWorth() {
     return { ngn, usd, count, total: ngn + usd * exchangeRate };
   }, [monthTransfers, exchangeRate]);
 
+  // Pagination: 7 entries per page, back to page 1 when the month changes
+  const transferPager = usePagination(monthTransfers, feeMonth);
+
   return (
     <div className="screen">
       <h1 className="screen-title">Net Worth</h1>
@@ -279,10 +284,17 @@ export default function NetWorth() {
           )}
 
           <div className="list-wrap">
-            {monthTransfers.length === 0 ? <p className="hint-text">No transfers or bank fees logged for this month.</p> : monthTransfers.map(tx => (
+            {monthTransfers.length === 0 ? <p className="hint-text">No transfers or bank fees logged for this month.</p> : transferPager.pageItems.map(tx => (
               <TransactionRow key={tx.id} transaction={tx} onDelete={handleDeleteTransfer} />
             ))}
           </div>
+
+          <Pagination
+            page={transferPager.page}
+            totalPages={transferPager.totalPages}
+            totalItems={transferPager.totalItems}
+            onChange={transferPager.setPage}
+          />
           <button className="btn btn-outline" style={{ marginTop: 20, width: '100%' }} onClick={() => setShowFeeModal(true)}>↗ Log Bank Fee</button>
           <button className="btn btn-primary" style={{ marginTop: 12, width: '100%' }} onClick={handleOpenTransferModal}>+ New Transfer</button>
         </>
