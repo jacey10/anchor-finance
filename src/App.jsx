@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useSession } from './hooks/useSession';
 import { getHasAccount } from './lib/accountFlag';
 import { supabase } from './lib/supabase';
@@ -19,6 +19,8 @@ import Profile from './screens/Profile.jsx';
 
 // Import components
 import Sidebar from './components/Sidebar.jsx';
+
+const SCREENS = ['dashboard', 'income', 'expenses', 'family', 'goals', 'networth', 'settings', 'profile'];
 
 // --- 1. PROTECTED ROUTE (The Bouncer) ---
 function ProtectedRoute({ children }) {
@@ -55,8 +57,21 @@ function RootRoute() {
 }
 
 // --- 3. APP LAYOUT (Sidebar + Content) ---
+// The URL (/app/<screen>) is the source of truth, so refresh keeps your place.
 function AppLayout() {
-  const [activeScreen, setScreen] = React.useState('dashboard');
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  // /app/income -> ['', 'app', 'income'] -> 'income'
+  const segment = location.pathname.split('/')[2];
+
+  // /app or an unknown screen -> clean redirect to the dashboard
+  if (!SCREENS.includes(segment)) {
+    return <Navigate to="/app/dashboard" replace />;
+  }
+
+  const activeScreen = segment;
+  const setScreen = (key) => navigate(`/app/${key}`);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -69,7 +84,7 @@ function AppLayout() {
   return (
     <div className="app">
       <Sidebar activeScreen={activeScreen} setScreen={setScreen} onLogout={handleLogout} />
-      
+
       <main className="main">
         {activeScreen === 'dashboard' && <Dashboard />}
         {activeScreen === 'income' && <Income />}
@@ -101,13 +116,13 @@ export default function App() {
           <Route path="/signup" element={<AuthScreen defaultMode="signup" />} />
 
           {/* PRIVATE SIDE */}
-          <Route 
-            path="/app/*" 
+          <Route
+            path="/app/*"
             element={
               <ProtectedRoute>
                 <AppLayout />
               </ProtectedRoute>
-            } 
+            }
           />
 
           <Route path="*" element={<Navigate to="/" replace />} />
