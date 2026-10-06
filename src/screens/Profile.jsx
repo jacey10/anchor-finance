@@ -1,9 +1,17 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
+import { useRegisterRefresh } from '../hooks/RefreshContext';
 
 export default function Profile({ onLogout }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(false);
+
+  const refreshUser = useCallback(async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    setUser(user);
+  }, []);
+
+  useRegisterRefresh(refreshUser);
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => setUser(user));
@@ -13,14 +21,13 @@ export default function Profile({ onLogout }) {
     const confirmed = window.confirm(
       "Are you absolutely sure? This will permanently delete your account and ALL your financial data. This action cannot be undone."
     );
-    
+
     if (confirmed) {
       setLoading(true);
       try {
         // Call the secure function we created in Step 1
         const { error } = await supabase.rpc('delete_user');
         if (error) throw error;
-        
         await supabase.auth.signOut();
         onLogout();
       } catch (err) {
@@ -36,15 +43,14 @@ export default function Profile({ onLogout }) {
     <div className="screen">
       <h1 className="screen-title">Profile</h1>
       <p className="screen-sub">Manage your account details.</p>
-
       <div className="profile-card">
         <div className="profile-avatar-large">
           {user.email.charAt(0).toUpperCase()}
         </div>
+        
         <div className="profile-info">
           <label className="form-label">Email Address</label>
           <p className="profile-email">{user.email}</p>
-          
           <label className="form-label" style={{ marginTop: 16 }}>Member Since</label>
           <p className="profile-email">{new Date(user.created_at).toLocaleDateString()}</p>
         </div>

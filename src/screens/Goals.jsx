@@ -1,10 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+
 import {
   getGoals, addGoal, updateGoal, deleteGoal, addTransaction,
   getWishlistItems, addWishlistItem, updateWishlistItem, deleteWishlistItem,
   getNotes, addNote, deleteNote,
   getAccounts, getTransactions, getSetting
 } from '../lib/storage';
+
 import GoalRow from '../components/GoalRow';
 import WishlistRow from '../components/WishlistRow';
 import NoteRow from '../components/NoteRow';
@@ -13,6 +15,7 @@ import ConfirmDialog from '../components/ConfirmDialog';
 import WithdrawalModal from '../components/WithdrawalModal';
 import { formatNaira, formatUSD } from '../lib/format';
 import { calculateNetWorth } from '../lib/calculations';
+import { useRegisterRefresh } from '../hooks/RefreshContext';
 
 export default function Goals() {
   const [goals, setGoals] = useState([]);
@@ -50,6 +53,15 @@ export default function Goals() {
     loadNotes();
     loadAccounts();
   }, []);
+
+  const refreshData = useCallback(async () => {
+    await loadGoals();
+    await loadWishlist();
+    await loadNotes();
+    await loadAccounts();
+  }, []);
+
+  useRegisterRefresh(refreshData);
 
   const loadGoals = async () => {
     const data = await getGoals();
@@ -192,7 +204,7 @@ export default function Goals() {
     setWithdrawingGoal(null);
   };
 
-  // ── Delete with safety guard ──
+  // ── Delete with safety guard ─
   const handleDeleteConfirm = async () => {
     if (deletingGoalId) {
       const goal = goals.find(g => g.id === deletingGoalId);
@@ -349,7 +361,6 @@ export default function Goals() {
               <p className="hint-text">Nothing on your wishlist yet. Add something below!</p>
             )}
           </div>
-
           <button onClick={() => setShowAddWishForm(!showAddWishForm)} className="btn btn-outline" style={{ marginTop: '4px' }}>+ Add to Wishlist</button>
           {showAddWishForm && (
             <form onSubmit={handleAddWish} className="form-card">
@@ -442,7 +453,7 @@ export default function Goals() {
               <option value="">Select an account</option>
               {accounts.map(acc => (
                 <option key={acc.id} value={acc.id}>
-                  {acc.name} ({acc.currency === 'NGN' ? `₦${Number(acc.balance).toLocaleString()}` : `$${Number(acc.balance).toLocaleString()}`})
+                  {acc.name} ({acc.currency === 'NGN' ? `${Number(acc.balance).toLocaleString()}` : `$${Number(acc.balance).toLocaleString()}`})
                 </option>
               ))}
             </select>
@@ -464,7 +475,7 @@ export default function Goals() {
         onClose={() => setWithdrawingGoal(null)}
         onSuccess={handleWithdrawSuccess}
       />
-
+      
       <ConfirmDialog isOpen={!!deletingGoalId} onClose={() => setDeletingGoalId(null)} onConfirm={handleDeleteConfirm} message="Are you sure you want to delete this goal? This cannot be undone." />
       <ConfirmDialog isOpen={!!deletingWishId} onClose={() => setDeletingWishId(null)} onConfirm={handleDeleteWishConfirm} message="Remove this from your wishlist? This cannot be undone." />
       <ConfirmDialog isOpen={!!deletingNoteId} onClose={() => setDeletingNoteId(null)} onConfirm={handleDeleteNoteConfirm} message="Delete this note? This cannot be undone." />

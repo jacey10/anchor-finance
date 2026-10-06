@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { LineChart, Line, ResponsiveContainer, XAxis, YAxis, Tooltip } from 'recharts';
 import { getTransactions, getAccounts, getSetting, addAccount, deleteAccount, getGoals, addTransaction, deleteTransaction } from '../lib/storage';
 import { calculateNetWorth } from '../lib/calculations';
@@ -8,6 +8,7 @@ import TransactionRow from '../components/TransactionRow';
 import MonthPicker from '../components/MonthPicker';
 import Pagination from '../components/Pagination';
 import usePagination from '../lib/usePagination';
+import { useRegisterRefresh } from '../hooks/RefreshContext';
 
 // Local-time 'YYYY-MM' (avoids the UTC shift that toISOString can cause near month end)
 const getCurrentMonthKey = () => {
@@ -31,7 +32,7 @@ export default function NetWorth() {
   const [feeForm, setFeeForm] = useState({ account_id: '', amount: '', date: new Date().toISOString().slice(0, 10), note: '' });
   const [feeError, setFeeError] = useState('');
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
       const [txs, accountsData, rate, transferTxs, feeTxs, goalTransferTxs, goalWithdrawalTxs, fetchedGoals] = await Promise.all([
         getTransactions(),
@@ -71,9 +72,11 @@ export default function NetWorth() {
       setData({ total: 0, ngn: 0, usd: 0, goalBalance: 0, accounts: [] });
       setTransfers([]);
     }
-  };
+  }, []);
 
-  useEffect(() => { fetchData(); }, []);
+  useEffect(() => { fetchData(); }, [fetchData]);
+
+  useRegisterRefresh(fetchData);
 
   const handleOpenAddModal = () => {
     setFormError('');
@@ -119,7 +122,7 @@ export default function NetWorth() {
     setTransferError('');
     const amount = Number(transferForm.amount);
     const fee = Number(transferForm.fee) || 0;
-
+    
     if (!transferForm.from_account_id) { setTransferError('Please select a source account.'); return; }
     if (!transferForm.to_account_id) { setTransferError('Please select a destination account.'); return; }
     if (transferForm.from_account_id === transferForm.to_account_id) { setTransferError('Source and destination accounts cannot be the same.'); return; }
@@ -187,7 +190,6 @@ export default function NetWorth() {
     let ngn = 0;
     let usd = 0;
     let count = 0;
-
     monthTransfers.forEach(tx => {
       let charge = 0;
       if (tx.type === 'bank_fee') charge = Number(tx.amount) || 0;
@@ -195,6 +197,7 @@ export default function NetWorth() {
       if (charge <= 0) return;
 
       count += 1;
+
       if (tx.currency === 'USD') usd += charge;
       else ngn += charge;
     });
@@ -304,13 +307,13 @@ export default function NetWorth() {
         <form onSubmit={handleAddAccount} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           {formError && <div style={{ color: 'var(--accent-red)', fontSize: 13, background: 'var(--bg-warning)', padding: 10, borderRadius: 4 }}>{formError}</div>}
           <label className="form-label">Account Name<input type="text" value={newAccountForm.name} onChange={(e) => setNewAccountForm({ ...newAccountForm, name: e.target.value })} className="form-input" placeholder="e.g., Zenith Bank, Opay" required /></label>
-          <label className="form-label">Currency<select value={newAccountForm.currency} onChange={(e) => setNewAccountForm({ ...newAccountForm, currency: e.target.value })} className="form-select"><option value="NGN">NGN (₦)</option><option value="USD">USD ($)</option></select></label>
+          <label className="form-label">Currency<select value={newAccountForm.currency} onChange={(e) => setNewAccountForm({ ...newAccountForm, currency: e.target.value })} className="form-select"><option value="NGN">NGN ()</option><option value="USD">USD ($)</option></select></label>
           <label className="form-label">Account Opened Date<input type="date" value={newAccountForm.starting_balance_date} onChange={(e) => setNewAccountForm({ ...newAccountForm, starting_balance_date: e.target.value })} className="form-input" required /></label>
           <label className="form-label">Starting Balance<input type="number" value={newAccountForm.starting_balance} onChange={(e) => setNewAccountForm({ ...newAccountForm, starting_balance: e.target.value })} className="form-input" placeholder="0.00" min="0" step="0.01" /></label>
           <div className="form-actions"><button type="button" className="btn btn-ghost" onClick={() => setShowAddModal(false)}>Cancel</button><button type="submit" className="btn btn-primary">Save Account</button></div>
         </form>
       </Modal>
-
+      
       <Modal isOpen={showTransferModal} onClose={() => setShowTransferModal(false)} title="Transfer Between Accounts">
         <form onSubmit={handleTransferSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           {transferError && <div style={{ color: 'var(--accent-red)', fontSize: 13, background: 'var(--bg-warning)', padding: 10, borderRadius: 4 }}>{transferError}</div>}

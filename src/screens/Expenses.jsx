@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import { getCategories, getTransactions, addTransaction, deleteTransaction, getGoals, getAccounts, getSetting } from '../lib/storage';
 import { calculateNetWorth } from '../lib/calculations';
 import BaselineTab from '../components/BaselineTab';
 import LogTab from '../components/LogTab';
 import MonthPicker from '../components/MonthPicker';
+import { useRegisterRefresh } from '../hooks/RefreshContext';
 
 export default function Expenses() {
   const [tab, setTab] = useState('baseline');
@@ -33,6 +34,23 @@ export default function Expenses() {
     loadData();
   }, []);
 
+  const refreshData = useCallback(async () => {
+    const [allTxs, expenseTxs, g, accs, rate] = await Promise.all([
+      getTransactions(),
+      getTransactions({ type: 'expense' }),
+      getGoals(),
+      getAccounts(),
+      getSetting('exchange_rate')
+    ]);
+    const netWorthData = calculateNetWorth(allTxs, accs, rate || 1, null, g);
+    setCategories(await getCategories());
+    setTransactions(expenseTxs);
+    setGoals(g);
+    setAccounts(netWorthData.accounts);
+  }, []);
+
+  useRegisterRefresh(refreshData);
+
   const handleAddCategory = async () => {
     const name = prompt('Enter new expense category name (e.g., Groceries, Transport):');
     if (!name || name.trim() === '') return;
@@ -40,7 +58,7 @@ export default function Expenses() {
     if (!user) return;
     const { error } = await supabase.from('categories').insert([{ name: name.trim(), user_id: user.id, baseline: 0 }]);
     if (error) { alert('Error adding category: ' + error.message); return; }
-    setCategories(await getCategories()); 
+    setCategories(await getCategories());
   };
 
   const handleDeleteCategory = async (name) => {
@@ -61,7 +79,6 @@ export default function Expenses() {
       getAccounts(),
       getSetting('exchange_rate')
     ]);
-
     const netWorthData = calculateNetWorth(allTxs, newAccs, rate || 1, null, newGoals);
     setTransactions(expenseTxs);
     setGoals(newGoals);
@@ -107,28 +124,28 @@ export default function Expenses() {
       </div>
       <MonthPicker currentMonth={currentMonth} onChange={handleMonthChange} />
       {tab === 'baseline' ? (
-        <BaselineTab 
-          items={categories.map(c => ({ key: c.name, name: c.name, value: c.baseline || 0 }))} 
-          onUpdate={handleUpdateBaseline} 
-          total={categories.reduce((sum, c) => sum + (c.baseline || 0), 0)} 
+        <BaselineTab
+          items={categories.map(c => ({ key: c.name, name: c.name, value: c.baseline || 0 }))}
+          onUpdate={handleUpdateBaseline}
+          total={categories.reduce((sum, c) => sum + (c.baseline || 0), 0)}
           totalLabel="Total monthly expense budget"
           onAdd={handleAddCategory}
           addButtonText="+ Add Expense Category"
           onDelete={handleDeleteCategory}
         />
       ) : tab === 'log' ? (
-        <LogTab 
+        <LogTab
           view="entries"
           pageResetKey={`${currentMonth}|${dateFilter.start}|${dateFilter.end}`}
-          allTransactions={transactions} 
-          filteredTransactions={filteredTransactions} 
-          categories={categories} 
+          allTransactions={transactions}
+          filteredTransactions={filteredTransactions}
+          categories={categories}
           goals={goals}
           accounts={accounts}
           currentMonth={currentMonth}
-          type="expense" 
-          onAdd={handleAdd} 
-          onDelete={handleDelete} 
+          type="expense"
+          onAdd={handleAdd}
+          onDelete={handleDelete}
           filterSlot={
             <div className="form-card" style={{ marginBottom: 20, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-end', gap: 12 }}>
               <label className="form-label" style={{ flex: 1, minWidth: 120 }}>Date From
@@ -142,17 +159,17 @@ export default function Expenses() {
           }
         />
       ) : (
-        <LogTab 
+        <LogTab
           view="variance"
-          allTransactions={transactions} 
-          filteredTransactions={filteredTransactions} 
-          categories={categories} 
+          allTransactions={transactions}
+          filteredTransactions={filteredTransactions}
+          categories={categories}
           goals={goals}
           accounts={accounts}
           currentMonth={currentMonth}
-          type="expense" 
-          onAdd={handleAdd} 
-          onDelete={handleDelete} 
+          type="expense"
+          onAdd={handleAdd}
+          onDelete={handleDelete}
         />
       )}
     </div>

@@ -1,11 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
+
 import { getPeople, getTransactions, addTransaction, deleteTransaction, getAccounts, getGoals, getSetting } from '../lib/storage'; // UPDATED: Added getGoals, getSetting
+
 import { calculateNetWorth } from '../lib/calculations'; // ADDED: For live balance calculation
 import BaselineTab from '../components/BaselineTab';
 import LogTab from '../components/LogTab';
 import MonthPicker from '../components/MonthPicker';
 import OverageWarning from '../components/OverageWarning';
+import { useRegisterRefresh } from '../hooks/RefreshContext';
 
 export default function Family() {
   const [tab, setTab] = useState('budget');
@@ -22,39 +25,60 @@ export default function Family() {
   useEffect(() => {
     const loadData = async () => {
       setLoading(true);
-      
-      const [ppl, allTxs, txs, accs, gls, rate, { data: typesData }] = await Promise.all([
-        getPeople(),
-        getTransactions(), // ADDED: Fetch all transactions for balance calculation
-        getTransactions({ type: 'family_support' }),
-        getAccounts(),
-        getGoals(),
-        getSetting('exchange_rate'),
-        supabase.from('family_types').select('*').order('name')
-      ]);
-      
-      const netWorthData = calculateNetWorth(allTxs, accs, rate || 1, null, gls);
 
-      setPeople(ppl);
-      setTransactions(txs);
-      setAccounts(netWorthData.accounts); // UPDATED: Use calculated accounts
-      setGoals(gls);
-      setFamilyTypes(typesData || []);
-      setLoading(false);
-    };
-    
-    loadData();
+      const [ppl, allTxs, txs, accs, gls, rate, { data: typesData }] = await Promise.all([
+         getPeople(),
+         getTransactions(), // ADDED: Fetch all transactions for balance calculation
+         getTransactions({ type: 'family_support' }),
+         getAccounts(),
+         getGoals(),
+         getSetting('exchange_rate'),
+         supabase.from('family_types').select('*').order('name')
+       ]);
+
+       const netWorthData = calculateNetWorth(allTxs, accs, rate || 1, null, gls);
+
+       setPeople(ppl);
+       setTransactions(txs);
+       setAccounts(netWorthData.accounts); // UPDATED: Use calculated accounts
+       setGoals(gls);
+       setFamilyTypes(typesData || []);
+       setLoading(false);
+     };
+
+     loadData();
   }, []);
+
+  const refreshData = useCallback(async () => {
+    const [ppl, allTxs, txs, accs, gls, rate, { data: typesData }] = await Promise.all([
+      getPeople(),
+      getTransactions(), // ADDED: Fetch all transactions for balance calculation
+      getTransactions({ type: 'family_support' }),
+      getAccounts(),
+      getGoals(),
+      getSetting('exchange_rate'),
+      supabase.from('family_types').select('*').order('name')
+    ]);
+
+    const netWorthData = calculateNetWorth(allTxs, accs, rate || 1, null, gls);
+    setPeople(ppl);
+    setTransactions(txs);
+    setAccounts(netWorthData.accounts); // UPDATED: Use calculated accounts
+    setGoals(gls);
+    setFamilyTypes(typesData || []);
+  }, []);
+
+  useRegisterRefresh(refreshData);
 
   const handleAddFirstMember = async () => {
     const name = prompt('Enter the name of the family member:');
     if (!name || name.trim() === '') return;
-    
+
     const budgetInput = prompt('Enter monthly budget amount (e.g., 10000):');
     if (!budgetInput || isNaN(budgetInput)) return;
-    
+
     const { data: { user } } = await supabase.auth.getUser();
-    
+
     const { error } = await supabase
       .from('people')
       .insert([
@@ -65,12 +89,12 @@ export default function Family() {
           created_at: new Date().toISOString()
         }
       ]);
-    
+
     if (error) {
       alert('Error adding member: ' + error.message);
       return;
     }
-    
+
     const updatedPeople = await getPeople();
     setPeople(updatedPeople);
   };
@@ -83,12 +107,12 @@ export default function Family() {
       .update({ budget: newBudget })
       .eq('name', name)
       .eq('user_id', user.id);
-    
+
     if (error) {
       alert('Error updating budget: ' + error.message);
       return;
     }
-    
+
     const updatedPeople = await getPeople();
     setPeople(updatedPeople);
   };
@@ -103,8 +127,8 @@ export default function Family() {
       getGoals(),
       getSetting('exchange_rate')
     ]);
+    
     const netWorthData = calculateNetWorth(allTxs, accs, rate || 1, null, gls);
-
     setPeople(ppl);
     setTransactions(txs);
     setAccounts(netWorthData.accounts);
@@ -113,45 +137,42 @@ export default function Family() {
 
   const handleBeforeAdd = (tx) => {
     const person = people.find(p => p.name === tx.category);
-    
     if (person) {
-      const entryMonth = tx.date.slice(0, 7);
-      const alreadyGiven = transactions
-        .filter(t => (t.person || t.category) === person.name && t.date.startsWith(entryMonth))
-        .reduce((sum, t) => sum + t.amount, 0);
-      
-      if (alreadyGiven + tx.amount > person.budget) {
-        setPendingTx(tx);
-        setWarning({ 
-          person: person.name, 
-          cap: person.budget, 
-          alreadyGiven, 
-          parsed: tx.amount, 
-          over: (alreadyGiven + tx.amount) - person.budget 
-        });
-        return false;
-      }
-    }
-    
-    return true;
+       const entryMonth = tx.date.slice(0, 7);
+       const alreadyGiven = transactions
+         .filter(t => (t.person || t.category) === person.name && t.date.startsWith(entryMonth))
+         .reduce((sum, t) => sum + t.amount, 0);
+
+       if (alreadyGiven + tx.amount > person.budget) {
+         setPendingTx(tx);
+         setWarning({ 
+           person: person.name, 
+           cap: person.budget, 
+           alreadyGiven, 
+           parsed: tx.amount, 
+           over: (alreadyGiven + tx.amount) - person.budget 
+         });
+         return false;
+       }
+     }
+     return true;
   };
 
   const handleDeleteMember = async (name) => {
     if (!window.confirm(`Are you sure you want to remove ${name} from your family support list?`)) return;
-    
+
     const { data: { user } } = await supabase.auth.getUser();
-    
+
     const { error } = await supabase
       .from('people')
       .delete()
       .eq('name', name)
       .eq('user_id', user.id);
-    
+
     if (error) {
       alert('Error deleting member: ' + error.message);
       return;
     }
-    
     const updatedPeople = await getPeople();
     setPeople(updatedPeople);
   };
@@ -167,6 +188,7 @@ export default function Family() {
         getGoals(),
         getSetting('exchange_rate')
       ]);
+
       const netWorthData = calculateNetWorth(allTxs, accs, rate || 1, null, gls);
 
       setPeople(ppl);
@@ -187,6 +209,7 @@ export default function Family() {
       getGoals(),
       getSetting('exchange_rate')
     ]);
+    
     const netWorthData = calculateNetWorth(allTxs, accs, rate || 1, null, gls);
 
     setTransactions(txs);
@@ -213,14 +236,14 @@ export default function Family() {
         <h1 className="screen-title">Family Support</h1>
         <p className="screen-sub">What you can give this month, by person.</p>
         <div className="empty-state">
-          <div className="empty-icon">👨‍👩‍👧‍👦</div>
+          <div className="empty-icon">👨‍‍👧‍👦</div>
           <h3 className="empty-title">No family members added yet</h3>
           <p className="empty-subtitle">
-            Use this space to track financial support for parents, siblings, or children. 
+            Use this space to track financial support for parents, siblings, or children.
             If you don't need this feature, you can simply ignore this tab!
           </p>
-          <button 
-            className="btn btn-primary" 
+          <button
+            className="btn btn-primary"
             onClick={handleAddFirstMember}
           >
             Add your first member
@@ -236,7 +259,7 @@ export default function Family() {
         <h1 className="screen-title">Family Support</h1>
         <p className="screen-sub">What you can give this month, by person.</p>
       </div>
-      
+
       <div className="tab-row">
         <button 
           className={`tab-button ${tab === 'budget' ? 'active' : ''}`} 

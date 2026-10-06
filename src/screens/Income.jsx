@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+
 import {
   getTransactions,
   addTransaction,
@@ -9,11 +10,13 @@ import {
   getSetting,
   getAccounts // V2 UPDATE: Added getAccounts
 } from '../lib/storage';
+
 import { formatNaira } from '../lib/format';
 import TransactionRow from '../components/TransactionRow';
 import MonthPicker from '../components/MonthPicker';
 import Pagination from '../components/Pagination';
 import usePagination from '../lib/usePagination';
+import { useRegisterRefresh } from '../hooks/RefreshContext';
 
 export default function Income() {
   const [transactions, setTransactions] = useState([]);
@@ -23,7 +26,7 @@ export default function Income() {
   const [activeTab, setActiveTab] = useState('all'); // 'all', 'ngn', 'usd'
   const [showForm, setShowForm] = useState(false);
   const [currentMonth, setCurrentMonth] = useState(new Date().toISOString().slice(0, 7));
-  
+
   const [formData, setFormData] = useState({
     source: '',
     currency: 'NGN',
@@ -42,7 +45,7 @@ export default function Income() {
         getAccounts(),
         getSetting('exchange_rate')
       ]);
-      
+
       setTransactions(txs);
       setSources(srcs);
       setAccounts(accs);
@@ -55,6 +58,22 @@ export default function Income() {
     };
     loadData();
   }, []);
+
+  const refreshData = useCallback(async () => {
+    const [txs, srcs, accs, rate] = await Promise.all([
+      getTransactions({ type: 'income' }),
+      getIncomeSources(),
+      getAccounts(),
+      getSetting('exchange_rate')
+    ]);
+
+    setTransactions(txs);
+    setSources(srcs);
+    setAccounts(accs);
+    setExchangeRate(rate || 1);
+  }, []);
+
+  useRegisterRefresh(refreshData);
 
   const handleAddSource = async () => {
     const name = prompt('Enter new income source name (e.g., Freelance, Salary):');
@@ -74,10 +93,10 @@ export default function Income() {
       const updatedSources = await getIncomeSources();
       setSources(updatedSources);
       if (updatedSources.length > 0) {
-        setFormData(prev => ({ 
-          ...prev, 
-          source: updatedSources[0].name, 
-          currency: updatedSources[0].default_currency 
+        setFormData(prev => ({
+          ...prev,
+          source: updatedSources[0].name,
+          currency: updatedSources[0].default_currency
         }));
       } else {
         setFormData(prev => ({ ...prev, source: '', currency: 'NGN' }));
@@ -104,14 +123,13 @@ export default function Income() {
     e.preventDefault();
     const parsed = Number(formData.amount);
     if (!parsed || parsed <= 0) return;
-    
     // V2 UPDATE: Pass account_id to the transaction
     await addTransaction({ 
       ...formData, 
       amount: parsed, 
       type: 'income' 
     });
-    
+
     const newTxs = await getTransactions({ type: 'income' });
     setTransactions(newTxs);
     setCurrentMonth(formData.date.slice(0, 7)); // show the month the entry was saved in
@@ -145,7 +163,6 @@ export default function Income() {
     <div className="screen">
       <h1 className="screen-title">Income</h1>
       <p className="screen-sub">Every source, tracked in one place.</p>
-      
       {/* Tabs */}
       <div className="tab-row" style={{ marginBottom: 24 }}>
         {['all', 'ngn', 'usd'].map(tab => (
@@ -176,7 +193,6 @@ export default function Income() {
         totalItems={pager.totalItems}
         onChange={pager.setPage}
       />
-
       {!showForm && (
         <button onClick={() => setShowForm(true)} className="btn btn-outline" style={{ marginTop: 20 }}>
           + Add Income
@@ -272,7 +288,7 @@ export default function Income() {
           <label className="form-label">Note (Optional)
             <input type="text" value={formData.note} onChange={e => setFormData({...formData, note: e.target.value})} className="form-input" placeholder="e.g. Client payment" />
           </label>
-
+          
           <div className="form-actions">
             <button type="button" className="btn btn-ghost" onClick={() => setShowForm(false)}>Cancel</button>
             <button type="submit" className="btn btn-primary">Save Income</button>

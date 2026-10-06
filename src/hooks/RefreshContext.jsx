@@ -207,7 +207,7 @@ export function PullToRefreshProvider({ children }) {
           aria-label={isRefreshing ? 'Refreshing' : undefined}
           style={{
             position: 'absolute',
-            top: 0,
+            top: -15,
             left: '50%',
             width: CIRCLE_SIZE,
             height: CIRCLE_SIZE,

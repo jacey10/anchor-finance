@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   LineChart, Line, ResponsiveContainer, XAxis, YAxis, Tooltip,
   PieChart, Pie, Cell
@@ -17,6 +17,7 @@ import GoalRow from '../components/GoalRow';
 import Modal from '../components/Modal';
 import ImpulseInsight from '../components/ImpulseInsight';
 import MonthPicker from '../components/MonthPicker';
+import { useRegisterRefresh } from '../hooks/RefreshContext';
 
 const COLORS = [
   '#B8935F', '#8FA98A', '#5A7F9F', '#B87C6B',
@@ -61,7 +62,7 @@ export default function Dashboard() {
   });
 
   const trendData = useMemo(() => {
-   return calculateHistoricalTrend(rawData.transactions, rawData.accounts, rawData.exchangeRate, rawData.goals);
+    return calculateHistoricalTrend(rawData.transactions, rawData.accounts, rawData.exchangeRate, rawData.goals);
   }, [rawData.transactions, rawData.accounts, rawData.exchangeRate, rawData.goals]);
 
   useEffect(() => {
@@ -78,14 +79,14 @@ export default function Dashboard() {
         const safeRate = rate || 1;
         // V2 FIX: Added goals to rawData
         setRawData({ transactions, accounts: accounts || [], exchangeRate: safeRate, goals });
-
+        
         const prevMonthDate = new Date(`${currentMonth}-01`);
         prevMonthDate.setMonth(prevMonthDate.getMonth() - 1);
         const prevMonthKey = prevMonthDate.toISOString().slice(0, 7);
 
         const currentMonthTxs = transactions.filter((tx) => tx.date.startsWith(currentMonth));
         const prevMonthTxs = transactions.filter((tx) => tx.date.startsWith(prevMonthKey));
-
+        
         const summary = calculateMonthlySummary(currentMonthTxs, currentMonth, safeRate);
         const prevSummary = calculateMonthlySummary(prevMonthTxs, prevMonthKey, safeRate);
 
@@ -110,7 +111,6 @@ export default function Dashboard() {
             const amount = tx.currency === 'USD' ? tx.amount * safeRate : tx.amount;
             breakdownMap[category] = (breakdownMap[category] || 0) + amount;
           });
-
         const expenseBreakdown = Object.entries(breakdownMap).map(([name, value]) => ({
           name,
           value
@@ -141,7 +141,7 @@ export default function Dashboard() {
     loadData();
   }, [currentMonth, trendData]);
 
-  const refreshData = async () => {
+  const refreshData = useCallback(async () => {
     try {
       const [transactions, goals, accounts, rate, impulseBudget] = await Promise.all([
         getTransactions(),
@@ -157,6 +157,7 @@ export default function Dashboard() {
 
       // V2 FIX: Added goals as 5th argument
       const netWorthData = calculateNetWorth(transactions, accounts || [], safeRate, null, goals);
+
       // V2 FIX: Removed goals argument
       const availableBalance = calculateAvailableToSpend(netWorthData);
 
@@ -211,7 +212,9 @@ export default function Dashboard() {
     } catch (error) {
       console.error("Dashboard failed to refresh data:", error);
     }
-  };
+  }, [currentMonth, trendData]);
+
+  useRegisterRefresh(refreshData);
 
   const handlePaySubmit = async (e) => {
     e.preventDefault();
@@ -228,7 +231,7 @@ export default function Dashboard() {
       goal_id: payingGoal.id,
       account_id: payForm.account_id
     });
-
+    
     let newCurrent = payingGoal.current + amount;
     if (newCurrent > payingGoal.target) {
       newCurrent = payingGoal.target;
@@ -271,9 +274,9 @@ export default function Dashboard() {
 
   return (
     <div className="screen">
-      <MonthPicker 
-        currentMonth={currentMonth} 
-        onChange={setCurrentMonth} 
+      <MonthPicker
+        currentMonth={currentMonth}
+        onChange={setCurrentMonth}
       />
 
       <header className="page-header">
@@ -400,7 +403,7 @@ export default function Dashboard() {
           )}
         </section>
       )}
-
+      
       <section className="section">
         <h2 className="section-title">Goals in motion</h2>
         <div className="goals-wrap">
@@ -556,6 +559,7 @@ export default function Dashboard() {
               required
             />
           </label>
+
           <label className="form-label">
             Target
             <input
@@ -566,6 +570,7 @@ export default function Dashboard() {
               required
             />
           </label>
+
           <label className="form-label">
             Deadline
             <input
@@ -575,6 +580,7 @@ export default function Dashboard() {
               className="form-input"
             />
           </label>
+
           <div className="form-actions">
             <button
               type="button"
