@@ -1,23 +1,37 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react'; // <-- Added useCallback
 import { getSetting, updateSetting, getTransactions } from '../lib/storage';
 import { formatNaira } from '../lib/format';
 import InstallAppCard from '../components/InstallAppCard';
+import { useRegisterRefresh } from '../hooks/RefreshContext'; // <-- Added for pull-to-refresh
 
 export default function Settings() {
   const [exchangeRate, setExchangeRate] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
   const [draftRate, setDraftRate] = useState('');
-
   const [impulseBudget, setImpulseBudget] = useState(null);
   const [isEditingBudget, setIsEditingBudget] = useState(false);
   const [draftBudget, setDraftBudget] = useState('');
+
+  // Define the refresh logic for pull-to-refresh
+  const refreshData = useCallback(async () => {
+    const [rate, budget] = await Promise.all([
+      getSetting('exchange_rate'),
+      getSetting('impulse_budget'),
+    ]);
+    setExchangeRate(rate);
+    setDraftRate(String(rate));
+    setImpulseBudget(budget);
+    setDraftBudget(String(budget));
+  }, []);
+
+  // Register it with the global provider
+  useRegisterRefresh(refreshData);
 
   useEffect(() => {
     getSetting('exchange_rate').then(val => {
       setExchangeRate(val);
       setDraftRate(String(val));
     });
-
     getSetting('impulse_budget').then(val => {
       setImpulseBudget(val);
       setDraftBudget(String(val));
@@ -52,7 +66,6 @@ export default function Settings() {
       alert("No transactions to export yet!");
       return;
     }
-    
     const headers = ['Date', 'Type', 'Category/Person', 'Amount', 'Currency', 'Note'];
     const rows = transactions.map(tx => [
       tx.date,
@@ -62,12 +75,10 @@ export default function Settings() {
       tx.currency,
       `"${(tx.note || '').replace(/"/g, '""')}"` // Escape quotes in notes
     ]);
-    
     const csvContent = [
       headers.join(','),
       ...rows.map(row => row.join(','))
     ].join('\n');
-    
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -80,7 +91,6 @@ export default function Settings() {
     <div className="screen">
       <h1 className="screen-title">Settings</h1>
       <p className="screen-sub">Manage your app preferences.</p>
-      
       <div className="list-wrap">
         <div className="list-row">
           <div className="list-row-content">
@@ -88,7 +98,6 @@ export default function Settings() {
             <div className="list-row-meta">
               {isEditing ? (
                 <form onSubmit={handleUpdateRate} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                  
                   {/* If it's an input field */}
                   <input 
                     type="number" 
@@ -98,10 +107,8 @@ export default function Settings() {
                     style={{ width: 100, padding: 6 }}
                     autoFocus
                   />
-
                   {/* If it's just text displayed on the screen */}
                   {exchangeRate === null ? '...' : exchangeRate}
-
                   <button type="submit" className="btn btn-primary" style={{ padding: '6px 12px', fontSize: 12 }}>Save</button>
                   <button type="button" className="btn btn-ghost" onClick={() => { setIsEditing(false); setDraftRate(String(exchangeRate)); }} style={{ padding: '6px 12px', fontSize: 12 }}>Cancel</button>
                 </form>
@@ -114,7 +121,6 @@ export default function Settings() {
             <button className="btn btn-outline" onClick={() => setIsEditing(true)}>Edit</button>
           )}
         </div>
-
         <div className="list-row">
           <div className="list-row-content">
             <div className="list-row-title">Impulse Budget</div>
@@ -129,7 +135,6 @@ export default function Settings() {
                     style={{ width: 100, padding: 6 }}
                     autoFocus
                   />
-
                   <button type="submit" className="btn btn-primary" style={{ padding: '6px 12px', fontSize: 12 }}>Save</button>
                   <button type="button" className="btn btn-ghost" onClick={() => { setIsEditingBudget(false); setDraftBudget(String(impulseBudget)); }} style={{ padding: '6px 12px', fontSize: 12 }}>Cancel</button>
                 </form>
@@ -142,7 +147,6 @@ export default function Settings() {
             <button className="btn btn-outline" onClick={() => setIsEditingBudget(true)}>Edit</button>
           )}
         </div>
-
         <div className="list-row">
           <div className="list-row-content">
             <div className="list-row-title">Export Data</div>
@@ -151,7 +155,6 @@ export default function Settings() {
           <button className="btn btn-outline" onClick={handleExport}>Export</button>
         </div>
       </div>
-            
       <h2 className="section-title">App Experience</h2>
       <div className="list-wrap">
         <InstallAppCard />

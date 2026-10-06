@@ -1753,3 +1753,12 @@ input, select { font-family: inherit; }
 .chart-wrap *:focus {
   outline: none;
 }
+
+/* ==========================================================================
+PWA Pull-to-Refresh Fix
+========================================================================== */
+@media (display-mode: standalone) {
+  html, body {
+    overscroll-behavior-y: none;
+  }
+}
