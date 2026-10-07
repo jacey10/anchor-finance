@@ -40,8 +40,19 @@ export default function LogTab({
   const [withdrawalAmount, setWithdrawalAmount] = useState('');
   const [withdrawalDate, setWithdrawalDate] = useState(new Date().toISOString().slice(0, 10));
 
+  // Category filter state
+  const [categoryFilter, setCategoryFilter] = useState('all');
+
+  // Filter transactions by category before pagination
+  const transactionsForPagination = useMemo(() => {
+    if (categoryFilter === 'all') return filteredTransactions;
+    return filteredTransactions.filter(t => t.category === categoryFilter);
+  }, [filteredTransactions, categoryFilter]);
+
+  const currentTotal = transactionsForPagination.reduce((sum, t) => sum + t.amount, 0);
+
   // Pagination: 7 entries per page
-  const pager = usePagination(filteredTransactions, pageResetKey ?? currentMonth);
+  const pager = usePagination(transactionsForPagination, `${pageResetKey ?? currentMonth}|${categoryFilter}`); // Replaced const pager = usePagination(filteredTransactions, pageResetKey ?? currentMonth);
 
   const monthlyTransactions = useMemo(() => {
     return allTransactions.filter(tx => tx.date.startsWith(currentMonth));
@@ -159,13 +170,32 @@ export default function LogTab({
       {showEntries && (
         <>
           {/* V2 FIX: Restored the Goal Summary Banner */}
-          {goalFundedTotal > 0 && (
+          {goalFundedTotal > 0 && categoryFilter === 'all' && (
             <div className="goal-summary-banner" style={{ marginTop: 16, marginBottom: 16, padding: '12px 16px', background: 'rgba(184, 147, 95, 0.1)', borderRadius: 8, border: '1px solid var(--accent-gold)', color: 'var(--accent-gold)', fontWeight: 600, fontSize: 14 }}>
               🎯 Goal-funded spending this month: {formatNaira(goalFundedTotal)}
             </div>
           )}
 
           {filterSlot}
+
+          {/* Category Filter and Total */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, gap: 12 }}>
+            <select 
+              value={categoryFilter} 
+              onChange={(e) => setCategoryFilter(e.target.value)}
+              className="form-select"
+              style={{ flex: 1, maxWidth: 200 }}
+            >
+              <option value="all">All Categories</option>
+              {categories.map(c => (
+                <option key={c.name} value={c.name}>{c.name}</option>
+              ))}
+            </select>
+            
+            <div style={{ fontWeight: 600, color: 'var(--accent-gold)', fontSize: 14 }}>
+              Total: {type === 'expense' ? formatNaira(currentTotal) : formatNaira(currentTotal)}
+            </div>
+          </div>
 
           <h2 className="section-title" style={{ marginTop: view === 'all' ? 32 : 20 }}>Recent Entries</h2>
           <div className="list-wrap">
