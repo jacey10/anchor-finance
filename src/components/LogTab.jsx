@@ -16,14 +16,14 @@ export default function LogTab({
   type,
   onAdd,
   onDelete,
-  onBeforeAdd,
+  onBeforeAdd, // Used for OverageWarning in Family tab
   view = 'all', // 'all' (original layout) | 'entries' | 'variance'
   filterSlot = null, // optional node rendered between the goal banner and Recent Entries
   pageResetKey // optional: when this changes, Recent Entries goes back to page 1 (defaults to the month)
 }) {
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState({
-    category: categories[0]?.name || '',
+    category: '',  // Changed from categories[0]?.name || ''
     support_type: '',
     amount: '',
     date: new Date().toISOString().slice(0, 10),
@@ -47,6 +47,7 @@ export default function LogTab({
     return allTransactions.filter(tx => tx.date.startsWith(currentMonth));
   }, [allTransactions, currentMonth]);
 
+  // Calculate totals by category
   const byCategory = useMemo(() => {
     const map = {};
     categories.forEach(c => { map[c.name] = 0; });
@@ -68,9 +69,10 @@ export default function LogTab({
     const parsed = Number(finalFormData.amount);
     if (!parsed || parsed <= 0) return;
 
+    // If we have an overage checker (Family tab), run it first
     if (onBeforeAdd) {
       const shouldProceed = onBeforeAdd({ ...finalFormData, amount: parsed });
-      if (!shouldProceed) return;
+      if (!shouldProceed) return; // The warning modal will handle the actual add
     }
 
     onAdd({
@@ -192,7 +194,9 @@ export default function LogTab({
               value={formData.category}
               onChange={(e) => setFormData({ ...formData, category: e.target.value })}
               className="form-select"
+              required
             >
+              <option value="" disabled>Select a category</option>
               {categories.map(c => (
                 <option key={c.name} value={c.name}>{c.name}</option>
               ))}
