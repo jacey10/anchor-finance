@@ -18,6 +18,7 @@ import Modal from '../components/Modal';
 import ImpulseInsight from '../components/ImpulseInsight';
 import MonthPicker from '../components/MonthPicker';
 import { useRegisterRefresh } from '../hooks/RefreshContext';
+import { Amount, EyeToggle } from '../components/BalanceVisibility';
 
 const COLORS = [
   '#B8935F', '#8FA98A', '#5A7F9F', '#B87C6B',
@@ -280,10 +281,10 @@ export default function Dashboard() {
       />
 
       <header className="page-header">
-        <p className="eyebrow">Where things stand</p>
-        <h1 className="hero-number">{formatNaira(data.netWorth)}</h1>
+        <p className="eyebrow eyebrow-row">Where things stand<EyeToggle /></p>
+        <h1 className="hero-number"><Amount value={formatNaira(data.netWorth)} /></h1>
         <p className="hero-sub" style={{ color: 'var(--accent-gold)', marginTop: 8 }}>
-          Available to spend: {formatNaira(data.availableBalance)}
+          Available to spend: <Amount value={formatNaira(data.availableBalance)} />
         </p>
         {(data.income > 0 || data.expenses > 0) && (
           <div className="networth-change">
@@ -292,7 +293,7 @@ export default function Dashboard() {
             data.monthlyChange < 0 ? 'negative' : 
             'neutral'
           }`}>
-            {data.monthlyChange > 0 ? '▲' : data.monthlyChange < 0 ? '▼' : '▶'} {formatNaira(Math.abs(data.monthlyChange))}
+            {data.monthlyChange > 0 ? '▲' : data.monthlyChange < 0 ? '▼' : '▶'} <Amount value={formatNaira(Math.abs(data.monthlyChange))} />
           </span>
             <span className="change-percent">
               ({data.percentageChange.toFixed(1)}% vs last month)
@@ -305,11 +306,11 @@ export default function Dashboard() {
       <section className="grid-two">
         <div className="summary-block">
           <p className="summary-label">Income this month</p>
-          <p className="summary-value">{formatNaira(data.income)}</p>
+          <p className="summary-value"><Amount value={formatNaira(data.income)} /></p>
         </div>
         <div className="summary-block">
           <p className="summary-label">Outflow this month</p>
-          <p className="summary-value">{formatNaira(data.expenses)}</p>
+          <p className="summary-value"><Amount value={formatNaira(data.expenses)} /></p>
         </div>
       </section>
 

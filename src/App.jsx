@@ -20,6 +20,7 @@ import Profile from './screens/Profile.jsx';
 
 // Import components
 import Sidebar from './components/Sidebar.jsx';
+import { BalanceVisibilityProvider } from './components/BalanceVisibility.jsx';
 
 const SCREENS = ['dashboard', 'income', 'expenses', 'family', 'goals', 'networth', 'settings', 'profile'];
 
@@ -98,6 +99,7 @@ function AppLayout() {
 export default function App() {
   return (
     <InstallProvider>
+      <BalanceVisibilityProvider>
       <Router>
         <Routes>
           {/* Smart entry point — session-aware */}
@@ -121,6 +123,7 @@ export default function App() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Router>
+      </BalanceVisibilityProvider>
     </InstallProvider>
   );
 }

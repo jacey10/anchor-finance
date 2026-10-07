@@ -9,6 +9,7 @@ import MonthPicker from '../components/MonthPicker';
 import Pagination from '../components/Pagination';
 import usePagination from '../lib/usePagination';
 import { useRegisterRefresh } from '../hooks/RefreshContext';
+import { Amount, EyeToggle } from '../components/BalanceVisibility';
 
 // Local-time 'YYYY-MM' (avoids the UTC shift that toISOString can cause near month end)
 const getCurrentMonthKey = () => {
@@ -225,16 +226,16 @@ export default function NetWorth() {
         <>
           <div className="networth-cards">
             <div className="networth-card main">
-              <div className="networth-label">Total Net Worth</div>
-              <div className="networth-value">{formatNaira(data.total)}</div>
+              <div className="networth-label networth-label-row">Total Net Worth<EyeToggle /></div>
+              <div className="networth-value"><Amount value={formatNaira(data.total)} /></div>
             </div>
             <div className="networth-card">
               <div className="networth-label">Naira Holdings</div>
               <div className="networth-value" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 4 }}>
-                <span>{formatNaira(data.ngn)}</span>
+                <span><Amount value={formatNaira(data.ngn)} /></span>
                 {data.goalBalance > 0 && (
                   <span style={{ color: 'var(--accent-gold)', fontSize: 12, fontWeight: 'normal' }}>
-                    🎯 {formatNaira(data.goalBalance)} in virtual accounts
+                    🎯 <Amount value={formatNaira(data.goalBalance)} /> in virtual accounts
                   </span>
                 )}
               </div>
@@ -242,8 +243,8 @@ export default function NetWorth() {
             <div className="networth-card">
               <div className="networth-label">USD Holdings</div>
               <div className="networth-value" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 4 }}>
-                <span>{formatUSD(data.usd)}</span>
-                <span style={{ color: 'var(--text-muted)', fontSize: 12, fontWeight: 'normal' }}>≈ {formatNaira(data.usd * exchangeRate)}</span>
+                <span><Amount value={formatUSD(data.usd)} /></span>
+                <span style={{ color: 'var(--text-muted)', fontSize: 12, fontWeight: 'normal' }}>≈ <Amount value={formatNaira(data.usd * exchangeRate)} /></span>
               </div>
             </div>
           </div>
