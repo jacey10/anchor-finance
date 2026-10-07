@@ -249,7 +249,7 @@ export default function LogTab({
                 <option value="">Choose an account</option>
                 {accounts.map(acc => (
                   <option key={acc.id} value={acc.id}>
-                    {acc.name} ({acc.currency === 'NGN' ? formatNaira(acc.balance || acc.starting_balance) : formatUSD(acc.balance || acc.starting_balance)})
+                    {acc.name} ({acc.currency === 'NGN' ? formatNaira(acc.balance ?? acc.starting_balance) : formatUSD(acc.balance ?? acc.starting_balance)})
                   </option>
                 ))}
               </select>
