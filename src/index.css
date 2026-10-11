@@ -1,5 +1,4 @@
-/* Import Fonts */
-@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600&display=swap');
+/* Fonts are self-hosted via Fontsource (see main.jsx) */
 
 /* CSS Variables for your exact color palette */
 :root {
@@ -20,8 +19,8 @@
   --accent-red: #B87C6B;
   --bg-warning: #2A1E1C;
   
-  --font-serif: 'Fraunces', serif;
-  --font-sans: 'Inter', sans-serif;
+  --font-serif: 'Fraunces Variable', Georgia, serif;
+  --font-sans: 'Inter Variable', sans-serif;
 }
 
 /* Reset & Base */
@@ -200,7 +199,7 @@ input, select { font-family: inherit; }
   border-radius: 50%;
   background: var(--accent-gold);
   color: #1a1a1a;
-  font-weight: 700;
+  font-weight: 600;
   font-size: 18px;
   display: flex;
   align-items: center;
@@ -282,7 +281,7 @@ input, select { font-family: inherit; }
   background: var(--accent-gold);
   color: #1a1a1a;
   font-size: 32px;
-  font-weight: 700;
+  font-weight: 600;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -311,6 +310,7 @@ input, select { font-family: inherit; }
   color: #ff6b6b;
   margin: 0 0 8px 0;
   font-size: 18px;
+  font-weight: 600;
 }
 
 .danger-sub {
@@ -707,7 +707,7 @@ input, select { font-family: inherit; }
   border-radius: 8px; padding: 24px; width: 90%; max-width: 400px;
 }
 .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
-.modal-header h2 { font-family: var(--font-serif); font-size: 20px; color: var(--text-bright); }
+.modal-header h2 { font-family: var(--font-serif); font-size: 20px; font-weight: 600; color: var(--text-bright); }
 .modal-close { background: none; border: none; color: var(--text-muted); font-size: 24px; cursor: pointer; }
 .confirm-message { color: var(--text-primary); margin-bottom: 20px; }
 .modal-actions {display: flex; gap: 0.5rem;}
@@ -1475,7 +1475,7 @@ input, select { font-family: inherit; }
 .auth-main-title {
   font-family: var(--font-serif);
   font-size: 25px;
-  font-weight: 300;
+  font-weight: 400;
   background: linear-gradient(90deg, #005A78, #4FAF7D);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -1797,4 +1797,3 @@ PWA Pull-to-Refresh Fix
 .avatar-circle-loading {
   background: var(--border-subtle);
 }
-
