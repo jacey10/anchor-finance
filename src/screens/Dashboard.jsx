@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
-  LineChart, Line, ResponsiveContainer, XAxis, YAxis, Tooltip,
+  LineChart, Line, ResponsiveContainer, XAxis, YAxis, Tooltip, ReferenceLine,
   PieChart, Pie, Cell
 } from 'recharts';
 
@@ -12,7 +12,7 @@ import {
   calculateNetWorth, calculateMonthlySummary, calculateAvailableToSpend, calculateHistoricalTrend
 } from '../lib/calculations';
 
-import { formatNaira, formatUSD } from '../lib/format';
+import { formatNaira, formatUSD, formatCompact } from '../lib/format';
 import GoalRow from '../components/GoalRow';
 import Modal from '../components/Modal';
 import ImpulseInsight from '../components/ImpulseInsight';
@@ -24,6 +24,32 @@ const COLORS = [
   '#B8935F', '#8FA98A', '#5A7F9F', '#B87C6B',
   '#9F8FA9', '#7FA9BF', '#D4A373', '#A98FA9'
 ];
+
+// Vertical range for the net worth trend chart. Zero is always inside the range:
+// it sits on the bottom edge when nothing is negative, on the top edge when nothing
+// is positive, and has room on both sides when the line crosses zero
+const getTrendDomain = (trend) => {
+  const values = (trend || []).map((point) => point.value).filter((v) => Number.isFinite(v));
+  const low = Math.min(0, ...values);
+  const high = Math.max(0, ...values);
+  if (low === 0 && high === 0) return [-1000, 1000];
+  const pad = (high - low) * 0.1;
+  return [low < 0 ? low - pad : 0, high > 0 ? high + pad : 0];
+};
+
+// Round tick values (e.g. 0, 50k, 100k) that always fall inside the chart range
+const getTrendTicks = ([min, max]) => {
+  const rough = (max - min) / 4;
+  const magnitude = Math.pow(10, Math.floor(Math.log10(rough)));
+  const ratio = rough / magnitude;
+  const step = (ratio <= 1 ? 1 : ratio <= 2 ? 2 : ratio <= 5 ? 5 : 10) * magnitude;
+  const ticks = [];
+  for (let i = Math.ceil(min / step); i * step <= max; i++) ticks.push(i * step || 0);
+  return ticks;
+};
+
+// Compact Naira with the minus sign in front (e.g. -₦50k), for the chart axis
+const formatAxisNaira = (n) => (n < 0 ? '-' + formatCompact(Math.abs(n)) : formatCompact(n));
 
 export default function Dashboard() {
   const [data, setData] = useState({
@@ -438,6 +464,9 @@ export default function Dashboard() {
         <div className="chart-wrap">
           <ResponsiveContainer width="100%" height={180}>
             <LineChart data={data.trend}>
+              {getTrendTicks(getTrendDomain(data.trend)).filter((tick) => tick !== 0).map((tick) => (
+                <ReferenceLine key={tick} y={tick} stroke="#2A3B4D" strokeDasharray="3 3" />
+              ))}
               <XAxis
                 dataKey="month"
                 stroke="#5A6B7A"
@@ -445,7 +474,15 @@ export default function Dashboard() {
                 axisLine={{ stroke: '#2A3B4D' }}
                 tickLine={false}
               />
-              <YAxis hide />
+              <YAxis
+                domain={getTrendDomain(data.trend)}
+                ticks={getTrendTicks(getTrendDomain(data.trend))}
+                tickFormatter={formatAxisNaira}
+                width={48}
+                tick={{ fill: '#8A98A5', fontSize: 11, textAnchor: 'middle', dx: -20 }}
+                tickLine={false}
+                axisLine={false}
+              />
               <Tooltip
                 contentStyle={{
                   background: '#16283C',
@@ -453,14 +490,23 @@ export default function Dashboard() {
                   borderRadius: 4,
                   color: '#EDE9E1'
                 }}
-                formatter={(value) => [formatNaira(value), 'Net worth']}
+                formatter={(value) => (
+                  value < 0
+                    ? [<span style={{ color: '#B87C6B' }}>{'-' + formatNaira(Math.abs(value))}</span>, 'Net worth']
+                    : [formatNaira(value), 'Net worth']
+                )}
               />
+              <ReferenceLine y={0} stroke="#8A98A5" strokeOpacity={0.6} />
               <Line
                 type="monotone"
                 dataKey="value"
                 stroke="#B8935F"
                 strokeWidth={2}
-                dot={{ fill: '#B8935F', r: 5, strokeWidth: 0 }}
+                dot={({ cx, cy, payload, index }) => (
+                  payload.value < 0
+                    ? <circle key={`dot-${index}`} cx={cx} cy={cy} r={6} fill="#B87C6B" stroke="#E4B4A4" strokeWidth={1.5} />
+                    : <circle key={`dot-${index}`} cx={cx} cy={cy} r={5} fill="#B8935F" />
+                )}
                 activeDot={{ r: 7, fill: '#F3EEE4' }}
               />
             </LineChart>
