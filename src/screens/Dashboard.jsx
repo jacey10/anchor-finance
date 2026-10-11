@@ -465,7 +465,7 @@ export default function Dashboard() {
           <ResponsiveContainer width="100%" height={180}>
             <LineChart data={data.trend}>
               {getTrendTicks(getTrendDomain(data.trend)).filter((tick) => tick !== 0).map((tick) => (
-                <ReferenceLine key={tick} y={tick} stroke="#2A3B4D" strokeDasharray="3 3" />
+                <ReferenceLine key={tick} y={tick} stroke="#2A3B4D" strokeDasharray="3 3" zIndex={300} />
               ))}
               <XAxis
                 dataKey="month"
@@ -496,7 +496,7 @@ export default function Dashboard() {
                     : [formatNaira(value), 'Net worth']
                 )}
               />
-              <ReferenceLine y={0} stroke="#8A98A5" strokeOpacity={0.6} />
+              <ReferenceLine y={0} stroke="#8A98A5" strokeOpacity={0.6} zIndex={350} />
               <Line
                 type="monotone"
                 dataKey="value"
