@@ -3,6 +3,7 @@ import { getSetting, updateSetting, getTransactions } from '../lib/storage';
 import { formatNaira } from '../lib/format';
 import InstallAppCard from '../components/InstallAppCard';
 import { useRegisterRefresh } from '../hooks/RefreshContext'; // <-- Added for pull-to-refresh
+import { getThemePreference, setThemePreference, THEME_OPTIONS } from '../lib/theme'; // <-- Added for the theme toggle
 
 export default function Settings() {
   const [exchangeRate, setExchangeRate] = useState(null);
@@ -11,6 +12,7 @@ export default function Settings() {
   const [impulseBudget, setImpulseBudget] = useState(null);
   const [isEditingBudget, setIsEditingBudget] = useState(false);
   const [draftBudget, setDraftBudget] = useState('');
+  const [themePref, setThemePref] = useState(getThemePreference()); // <-- Added for the theme toggle
 
   // Define the refresh logic for pull-to-refresh
   const refreshData = useCallback(async () => {
@@ -58,6 +60,12 @@ export default function Settings() {
       setImpulseBudget(newBudget);
       setIsEditingBudget(false);
     }
+  };
+
+  // Save the theme choice in the browser and apply it right away
+  const handleThemeChange = (preference) => {
+    setThemePreference(preference);
+    setThemePref(preference);
   };
 
   const handleExport = async () => {
@@ -153,6 +161,28 @@ export default function Settings() {
             <div className="list-row-meta">Download all transactions as CSV</div>
           </div>
           <button className="btn btn-outline" onClick={handleExport}>Export</button>
+        </div>
+      </div>
+      <h2 className="section-title">Appearance</h2>
+      <div className="list-wrap">
+        <div className="list-row">
+          <div className="list-row-content">
+            <div className="list-row-title">Theme</div>
+            <div className="list-row-meta">Light, dark, or match your phone</div>
+          </div>
+          <div className="theme-toggle" role="group" aria-label="Theme">
+            {THEME_OPTIONS.map((option) => (
+              <button
+                key={option.key}
+                type="button"
+                className={`theme-option ${themePref === option.key ? 'theme-option-active' : ''}`}
+                aria-pressed={themePref === option.key}
+                onClick={() => handleThemeChange(option.key)}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
       <h2 className="section-title">App Experience</h2>

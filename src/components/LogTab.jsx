@@ -257,8 +257,8 @@ export default function LogTab({
                     fontWeight: 600,
                     fontSize: 14,
                     transition: 'all 0.2s ease',
-                    background: formData.sourceType === source ? 'var(--accent-gold)' : 'transparent',
-                    color: formData.sourceType === source ? '#ffffff' : 'var(--text-muted)'
+                    background: formData.sourceType === source ? 'var(--accent-gold-fill)' : 'transparent',
+                    color: formData.sourceType === source ? 'var(--on-gold)' : 'var(--text-muted)'
                   }}
                 >
                   {source === 'bank' ? '🏦 Bank Account' : '🎯 Goal Savings'}
@@ -431,8 +431,8 @@ export default function LogTab({
                     display: 'flex',
                     alignItems: 'center',
                     gap: 8,
-                    background: 'var(--accent-gold)',
-                    color: '#ffffff'
+                    background: 'var(--accent-gold-fill)',
+                    color: 'var(--on-gold)'
                   }}
                 >
                   <span style={{ fontSize: 16 }}>✅</span>

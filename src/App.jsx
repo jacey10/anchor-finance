@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useLayoutEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useSession } from './hooks/useSession';
 import { getHasAccount } from './lib/accountFlag';
 import { supabase } from './lib/supabase';
+import { applyTheme, clearTheme, watchSystemTheme } from './lib/theme';
 import { InstallProvider } from './InstallContext';
 import { PullToRefreshProvider } from './hooks/RefreshContext'; // <-- Added for pull-to-refresh
 
@@ -95,6 +96,20 @@ function AppLayout() {
   );
 }
 
+// --- 3b. THEME SCOPE ---
+// Applies the saved theme only while inside /app, so the landing page and sign-in stay as they are.
+function ThemeScope({ children }) {
+  useLayoutEffect(() => {
+    applyTheme();
+    const stopWatching = watchSystemTheme(applyTheme);
+    return () => {
+      stopWatching();
+      clearTheme();
+    };
+  }, []);
+  return children;
+}
+
 // --- 4. MAIN APP & ROUTING ---
 export default function App() {
   return (
@@ -115,9 +130,11 @@ export default function App() {
           <Route
             path="/app/*"
             element={
-              <ProtectedRoute>
-                <AppLayout />
-              </ProtectedRoute>
+              <ThemeScope>
+                <ProtectedRoute>
+                  <AppLayout />
+                </ProtectedRoute>
+              </ThemeScope>
             }
           />
           <Route path="*" element={<Navigate to="/" replace />} />

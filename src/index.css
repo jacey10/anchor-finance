@@ -21,6 +21,75 @@
   
   --font-serif: 'Fraunces Variable', Georgia, serif;
   --font-sans: 'Inter Variable', sans-serif;
+
+  /* Extra tokens: components already used these names with fallbacks, dark values match those fallbacks */
+  --bg-secondary: #f4f4f5;
+  --border-color: #2A3B4D;
+  --border: rgba(255, 255, 255, 0.14);
+  --ptr-bg: #1b2a44;
+  --ptr-border: rgba(255, 255, 255, 0.08);
+  --text-danger: #d9534f;
+  --accent-gold-fill: #B8935F;
+  --on-gold: #ffffff;
+  --shadow-card: none;
+
+  /* Net worth trend chart colours (Dashboard.jsx) */
+  --chart-tooltip-bg: #16283C;
+  --chart-tooltip-border: #2A3B4D;
+  --chart-tooltip-text: #EDE9E1;
+  --chart-axis: #5A6B7A;
+  --chart-axis-text: #8A98A5;
+  --chart-grid: #2A3B4D;
+  --chart-zero: #8A98A5;
+  --chart-line: #B8935F;
+  --chart-neg: #B87C6B;
+  --chart-neg-ring: #E4B4A4;
+  --chart-active-dot: #F3EEE4;
+}
+
+/* Light theme tokens (set on <html> by ThemeScope in App.jsx, inside /app only) */
+:root[data-theme="light"] {
+  color-scheme: light;
+
+  --bg-main: #FAF8F4;
+  --bg-card: #FFFFFF;
+  --bg-card-alt: #F3EEE4;
+  --border-card: #ECE6DA;
+  --border-subtle: #D9CFBC;
+
+  --text-bright: #0F1A2B;
+  --text-primary: #1E2A3C;
+  --text-secondary: #3A4757;
+  --text-muted: #5E6B78;
+  --text-faint: #616D7A;
+
+  /* Gold used for text and borders is deeper so it stays readable on light surfaces */
+  --accent-gold: #8A6538;
+  --accent-green: #4E6E4A;
+  --accent-red: #9A5545;
+  --bg-warning: #FBEDE9;
+
+  --bg-secondary: #EFEAE0;
+  --border-color: #D9CFBC;
+  --border: rgba(15, 26, 43, 0.14);
+  --ptr-bg: #FFFFFF;
+  --ptr-border: rgba(15, 26, 43, 0.1);
+  --text-danger: #C0392B;
+  --accent-gold-fill: #B8935F;
+  --on-gold: #171008;
+  --shadow-card: 0 1px 2px rgba(66, 48, 20, 0.05), 0 6px 18px rgba(66, 48, 20, 0.06);
+
+  --chart-tooltip-bg: #FFFFFF;
+  --chart-tooltip-border: #D9CFBC;
+  --chart-tooltip-text: #0F1A2B;
+  --chart-axis: #B5AA95;
+  --chart-axis-text: #5E6B78;
+  --chart-grid: #E2DACB;
+  --chart-zero: #9A9385;
+  --chart-line: #A8814B;
+  --chart-neg: #A9503F;
+  --chart-neg-ring: #E8C9C0;
+  --chart-active-dot: #0F1A2B;
 }
 
 /* Reset & Base */
@@ -404,7 +473,7 @@ input, select { font-family: inherit; }
 }
 
 /* Cards & Grids */
-.grid-two { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; }
+.grid-two { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 26px; }
 .section { margin-bottom: 36px; }
 
 .summary-block, .floor-card, .goal-row, .list-row, .chart-wrap {
@@ -1797,3 +1866,73 @@ PWA Pull-to-Refresh Fix
 .avatar-circle-loading {
   background: var(--border-subtle);
 }
+
+/* ==========================================================================
+   Theme toggle (Settings > Appearance)
+========================================================================== */
+.theme-toggle {
+  display: inline-flex;
+  gap: 4px;
+  padding: 3px;
+  background: var(--bg-main);
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+}
+.theme-option {
+  background: none;
+  border: 1px solid transparent;
+  color: var(--text-muted);
+  font-size: 13px;
+  padding: 6px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.theme-option-active {
+  background: var(--bg-card-alt);
+  border-color: var(--accent-gold);
+  color: var(--text-bright);
+  font-weight: 600;
+}
+
+/* ==========================================================================
+   Light theme: colours that were hard-coded for dark (inside /app only)
+========================================================================== */
+:root[data-theme="light"] .sidebar { background: #FFFFFF; }
+:root[data-theme="light"] .nav-item-active { background: var(--bg-card-alt); }
+
+/* Soft shadows lift cards off the cream page (dark keeps its borders only) */
+:root[data-theme="light"] .profile-card,
+:root[data-theme="light"] .summary-block,
+:root[data-theme="light"] .floor-card,
+:root[data-theme="light"] .compare-strip,
+:root[data-theme="light"] .goal-row,
+:root[data-theme="light"] .list-row,
+:root[data-theme="light"] .chart-wrap,
+:root[data-theme="light"] .family-dash-card,
+:root[data-theme="light"] .form-card,
+:root[data-theme="light"] .networth-card,
+:root[data-theme="light"] .month-selector,
+:root[data-theme="light"] .modal-content { box-shadow: var(--shadow-card); }
+
+:root[data-theme="light"] .glassy-dropdown { background: rgba(255, 255, 255, 0.94); box-shadow: 0 10px 30px rgba(66, 48, 20, 0.16); }
+:root[data-theme="light"] .dropdown-item:hover { background: rgba(15, 26, 43, 0.05); }
+:root[data-theme="light"] .logout-btn { color: var(--text-danger); }
+:root[data-theme="light"] .logout-btn:hover { background: rgba(192, 57, 43, 0.08); }
+:root[data-theme="light"] .delete-item-btn:hover { color: var(--text-danger); background: rgba(192, 57, 43, 0.08); }
+:root[data-theme="light"] .danger-zone { background: rgba(192, 57, 43, 0.05); border-color: rgba(192, 57, 43, 0.25); }
+:root[data-theme="light"] .danger-title { color: var(--text-danger); }
+:root[data-theme="light"] .btn-danger:hover { background: #7F4437; }
+:root[data-theme="light"] .modal-overlay { background: rgba(15, 26, 43, 0.45); }
+:root[data-theme="light"] .warning-title { color: #8A3F31; }
+:root[data-theme="light"] .warning-body { color: #6E4A40; }
+:root[data-theme="light"] .tag-impulse { background: rgba(154, 85, 69, 0.12); }
+:root[data-theme="light"] .goal-summary-banner { background: rgba(138, 101, 56, 0.1); }
+:root[data-theme="light"] .tag-goal { background: rgba(138, 101, 56, 0.12); }
+:root[data-theme="light"] .chip-active { background: rgba(138, 101, 56, 0.12); }
+
+/* Gold fills keep the brighter brand gold, with dark text on top */
+:root[data-theme="light"] .btn-primary { background: var(--accent-gold-fill); color: #171008; }
+:root[data-theme="light"] .avatar-circle,
+:root[data-theme="light"] .profile-avatar-large,
+:root[data-theme="light"] .goal-bar-fill { background: var(--accent-gold-fill); }
+:root[data-theme="light"] .goal-bar-track { background: #EFEAE0; }
