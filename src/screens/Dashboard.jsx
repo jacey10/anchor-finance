@@ -386,15 +386,17 @@ export default function Dashboard() {
                       <Cell
                         key={`cell-${index}`}
                         fill={COLORS[index % COLORS.length]}
+                        stroke='none'
                       />
                     ))}
                   </Pie>
                   <Tooltip
                     contentStyle={{
-                      background: '#16283C',
-                      border: '1px solid #2A3B4D',
+                      background: 'var(--chart-tooltip-bg)',
+                      border: '1px solid var(--chart-tooltip-border)',
                       borderRadius: 6,
-                      color: '#EDE9E1'
+                      color: 'var(--chart-tooltip-text)',
+                      boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
                     }}
                     formatter={(value, name) => [formatNaira(value), name]}
                   />
@@ -484,14 +486,15 @@ export default function Dashboard() {
               />
               <Tooltip
                 contentStyle={{
-                  background: '#16283C',
-                  border: '1px solid #2A3B4D',
+                  background: 'var(--chart-tooltip-bg)',
+                  border: '1px solid var(--chart-tooltip-border)',
                   borderRadius: 4,
-                  color: '#EDE9E1'
+                  color: 'var(--chart-tooltip-text)',
+                  boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
                 }}
                 formatter={(value) => (
                   value < 0
-                    ? [<span style={{ color: '#B87C6B' }}>{'-' + formatNaira(Math.abs(value))}</span>, 'Net worth']
+                    ? [<span style={{ color: 'var(--chart-neg)' }}>{'-' + formatNaira(Math.abs(value))}</span>, 'Net worth']
                     : [formatNaira(value), 'Net worth']
                 )}
               />
