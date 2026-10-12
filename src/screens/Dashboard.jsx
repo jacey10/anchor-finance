@@ -307,7 +307,7 @@ export default function Dashboard() {
       />
 
       <header className="page-header">
-        <p className="eyebrow eyebrow-row">Where things stand<EyeToggle /></p>
+        <p className="eyebrow eyebrow-row">Total Net Worth<EyeToggle /></p>
         <h1 className="hero-number"><Amount value={formatNaira(data.netWorth)} /></h1>
         <p className="hero-sub" style={{ color: 'var(--accent-gold)', marginTop: 8 }}>
           Available to spend: <Amount value={formatNaira(data.availableBalance)} />
@@ -326,7 +326,6 @@ export default function Dashboard() {
             </span>
           </div>
         )}
-        <p className="hero-sub">Total Net Worth</p>
       </header>
 
       <section className="grid-two">
