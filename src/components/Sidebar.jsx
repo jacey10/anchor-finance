@@ -14,8 +14,8 @@ export default function Sidebar({ activeScreen, setScreen, onLogout }) {
 
   return (
     <nav className="sidebar">
-      {/*  1. Brand (Left on Desktop, Top-Left on Mobile) → ALWAYS goes to /home */}
-      <Link to="/home" className="brand">
+      {/*  1. Brand (Left on Desktop, Top-Left on Mobile) → ALWAYS goes to /app/dashboard */}
+      <Link to="/app/dashboard" className="brand" aria-label="Anchor Vault dashboard">
         <span className="brand-mark">⚓</span>
         <span className="brand-name">Anchor Vault</span>
       </Link>
