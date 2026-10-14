@@ -1974,8 +1974,10 @@ PWA Pull-to-Refresh Fix
   transform: translateX(3px);
 }
 
-.about-list-row:hover {
-  background-color: var(--bg-hover, rgba(128, 128, 128, 0.08));
+@media (hover: hover) {
+  .about-list-row:hover {
+    background-color: var(--bg-hover, rgba(128, 128, 128, 0.08));
+  }
 }
 
 .about-list-row:focus-visible {
