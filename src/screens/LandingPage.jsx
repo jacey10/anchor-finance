@@ -277,9 +277,9 @@ export default function LandingPage() {
               Built with care by <a href="https://jacey10.vercel.app" target="_blank" rel="noopener noreferrer">Jacey</a>
             </p>
             <div className="social-links">
-              <a href="#">Twitter</a>
-              <a href="#">LinkedIn</a>
-              <a href="#">GitHub</a>
+              <a href="https://x.com/epsilonapp">Twitter</a>
+              <a href="https://www.linkedin.com/in/james-c-opara/">LinkedIn</a>
+              <a href="https://github.com/jacey10">GitHub</a>
             </div>
           </div>
         </div>
