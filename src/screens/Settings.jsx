@@ -4,6 +4,7 @@ import { formatNaira } from '../lib/format';
 import InstallAppCard from '../components/InstallAppCard';
 import { useRegisterRefresh } from '../hooks/RefreshContext'; // <-- Added for pull-to-refresh
 import { getThemePreference, setThemePreference, THEME_OPTIONS } from '../lib/theme'; // <-- Added for the theme toggle
+import { useNavigate } from 'react-router-dom';
 
 export default function Settings() {
   const [exchangeRate, setExchangeRate] = useState(null);
@@ -13,6 +14,7 @@ export default function Settings() {
   const [isEditingBudget, setIsEditingBudget] = useState(false);
   const [draftBudget, setDraftBudget] = useState('');
   const [themePref, setThemePref] = useState(getThemePreference()); // <-- Added for the theme toggle
+  const navigate = useNavigate();
 
   // Define the refresh logic for pull-to-refresh
   const refreshData = useCallback(async () => {
@@ -93,6 +95,28 @@ export default function Settings() {
     a.href = url;
     a.download = `anchor-finance-${new Date().toISOString().slice(0, 10)}.csv`;
     a.click();
+  };
+
+  const handleShare = async () => {
+    const shareUrl = `${window.location.origin}/home`;
+
+    try {
+      if (navigator.share) {
+        await navigator.share({
+          title: 'Anchor Vault',
+          text: 'Take control of your personal finances with Anchor Vault.',
+          url: shareUrl,
+        });
+      } else {
+        await navigator.clipboard.writeText(shareUrl);
+        alert('Anchor Vault link copied to clipboard!');
+      }
+    } catch (error) {
+      if (error.name !== 'AbortError') {
+        console.error('Unable to share Anchor Vault:', error);
+        alert('Unable to share the link. Please try again.');
+      }
+    }
   };
 
   return (
@@ -189,6 +213,67 @@ export default function Settings() {
       <div className="list-wrap">
         <InstallAppCard />
       </div>
+      
+      <h2 className="section-title">About Anchor Vault</h2>
+
+      <div className="list-wrap">
+        <button
+          type="button"
+          className="list-row about-list-row"
+          onClick={() => navigate('/home')}
+        >
+          <div className="list-row-content">
+            <div className="list-row-title">About Anchor Vault</div>
+            <div className="list-row-meta">
+              Learn about Anchor Vault and its features.
+            </div>
+          </div>
+          <span className="about-arrow" aria-hidden="true">›</span>
+        </button>
+
+        <button
+          type="button"
+          className="list-row about-list-row"
+          onClick={handleShare}
+        >
+          <div className="list-row-content">
+            <div className="list-row-title">Share Anchor Vault</div>
+            <div className="list-row-meta">
+              Share the app with friends and colleagues.
+            </div>
+          </div>
+          <span className="about-arrow" aria-hidden="true">›</span>
+        </button>
+
+        <button
+          type="button"
+          className="list-row about-list-row"
+          onClick={() => navigate('/app/help')}
+        >
+          <div className="list-row-content">
+            <div className="list-row-title">Help &amp; How to Use</div>
+            <div className="list-row-meta">
+              Learn how to use Anchor Vault's features.
+            </div>
+          </div>
+          <span className="about-arrow" aria-hidden="true">›</span>
+        </button>
+
+        <button
+          type="button"
+          className="list-row about-list-row"
+          onClick={() => navigate('/app/updates')}
+        >
+          <div className="list-row-content">
+            <div className="list-row-title">What's New</div>
+            <div className="list-row-meta">
+              Discover the latest features and improvements.
+            </div>
+          </div>
+          <span className="about-arrow" aria-hidden="true">›</span>
+        </button>
+      </div>
+      
     </div>
   );
 }

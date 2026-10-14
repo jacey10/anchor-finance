@@ -1936,3 +1936,62 @@ PWA Pull-to-Refresh Fix
 :root[data-theme="light"] .profile-avatar-large,
 :root[data-theme="light"] .goal-bar-fill { background: var(--accent-gold-fill); }
 :root[data-theme="light"] .goal-bar-track { background: #EFEAE0; }
+
+/* About Anchor Vault */
+.about-list-row {
+  width: 100%;
+  background: var(--bg-card);
+  border: 1px solid var(--border-card);
+  border-radius: 6px;
+
+  color: var(--text-primary);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+
+  transition: background-color 0.2s ease;
+}
+
+.about-list-row:hover {
+  background-color: var(--bg-card-alt);
+}
+
+.about-list-row:focus-visible {
+  outline: 2px solid var(--text-secondary);
+  outline-offset: 2px;
+}
+
+.about-arrow {
+  flex-shrink: 0;
+  margin-left: 12px;
+  font-size: 22px;
+  line-height: 1;
+  color: var(--text-faint);
+  transition: transform 0.2s ease;
+}
+
+.about-list-row:hover .about-arrow {
+  transform: translateX(3px);
+}
+
+.about-list-row:hover {
+  background-color: var(--bg-hover, rgba(128, 128, 128, 0.08));
+}
+
+.about-list-row:focus-visible {
+  outline: 2px solid var(--text-secondary);
+  outline-offset: 2px;
+}
+
+.about-arrow {
+  flex-shrink: 0;
+  margin-left: 12px;
+  font-size: 22px;
+  line-height: 1;
+  color: var(--text-faint);
+  transition: transform 0.2s ease;
+}
+
+.about-list-row:hover .about-arrow {
+  transform: translateX(3px);
+}
