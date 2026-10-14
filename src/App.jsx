@@ -1,4 +1,4 @@
-import React, { useLayoutEffect } from 'react';
+import React, { useLayoutEffect, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useSession } from './hooks/useSession';
 import { getHasAccount } from './lib/accountFlag';
@@ -6,7 +6,6 @@ import { supabase } from './lib/supabase';
 import { applyTheme, clearTheme, watchSystemTheme } from './lib/theme';
 import { InstallProvider } from './InstallContext';
 import { PullToRefreshProvider } from './hooks/RefreshContext'; // <-- Added for pull-to-refresh
-
 // Import all your screens
 import LandingPage from './screens/LandingPage.jsx';
 import AuthScreen from './screens/AuthScreen.jsx';
@@ -18,9 +17,12 @@ import Goals from './screens/Goals.jsx';
 import NetWorth from './screens/NetWorth.jsx';
 import Settings from './screens/Settings.jsx';
 import Profile from './screens/Profile.jsx';
-
 // Import components
-import Sidebar from './components/Sidebar.jsx';
+import DesktopSidebar from './components/DesktopSidebar.jsx';
+import MobileTopBar from './components/MobileTopBar.jsx';
+import MobileBottomNav from './components/MobileBottomNav.jsx';
+import MoreMenuSheet from './components/MoreMenuSheet.jsx';
+import CustomizeMenuSheet from './components/CustomizeMenuSheet.jsx';
 import { BalanceVisibilityProvider } from './components/BalanceVisibility.jsx';
 
 const SCREENS = ['dashboard', 'income', 'expenses', 'family', 'goals', 'networth', 'settings', 'profile'];
@@ -57,17 +59,21 @@ function RootRoute() {
 function AppLayout() {
   const location = useLocation();
   const navigate = useNavigate();
+
+  const [isMoreOpen, setIsMoreOpen] = useState(false);
+  const [isCustomizeOpen, setIsCustomizeOpen] = useState(false);
+
   // /app/income -> ['', 'app', 'income'] -> 'income'
   const segment = location.pathname.split('/')[2];
-  
+
   // /app or an unknown screen -> clean redirect to the dashboard
   if (!SCREENS.includes(segment)) {
     return <Navigate to="/app/dashboard" replace />;
   }
-  
+
   const activeScreen = segment;
   const setScreen = (key) => navigate(`/app/${key}`);
-  
+
   const handleLogout = async () => {
     await supabase.auth.signOut();
     // NOTE: hasAccount is intentionally left untouched here.
@@ -78,7 +84,38 @@ function AppLayout() {
 
   return (
     <div className="app">
-      <Sidebar activeScreen={activeScreen} setScreen={setScreen} onLogout={handleLogout} />
+      <DesktopSidebar
+        activeScreen={activeScreen}
+        setScreen={setScreen}
+        onLogout={handleLogout}
+      />
+
+      <MobileTopBar
+        setScreen={setScreen}
+        onLogout={handleLogout}
+      />
+
+      <MobileBottomNav
+        activeScreen={activeScreen}
+        setScreen={setScreen}
+        onMoreClick={() => setIsMoreOpen(true)}
+      />
+
+      <MoreMenuSheet
+        isOpen={isMoreOpen}
+        onClose={() => setIsMoreOpen(false)}
+        setScreen={setScreen}
+        onCustomizeClick={() => {
+          setIsMoreOpen(false);
+          setIsCustomizeOpen(true);
+        }}
+      />
+
+      <CustomizeMenuSheet
+        isOpen={isCustomizeOpen}
+        onClose={() => setIsCustomizeOpen(false)}
+      />
+
       {/* Wrap main with PullToRefreshProvider */}
       <PullToRefreshProvider>
         <main className="main">
@@ -144,3 +181,4 @@ export default function App() {
     </InstallProvider>
   );
 }
+

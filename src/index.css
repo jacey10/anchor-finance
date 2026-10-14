@@ -33,6 +33,8 @@
   --on-gold: #ffffff;
   --shadow-card: none;
 
+  --bg-sidebar: #0a1220;
+
   /* Net worth trend chart colours (Dashboard.jsx) */
   --chart-tooltip-bg: #16283C;
   --chart-tooltip-border: #2A3B4D;
@@ -79,6 +81,8 @@
   --on-gold: #171008;
   --shadow-card: 0 1px 2px rgba(66, 48, 20, 0.05), 0 6px 18px rgba(66, 48, 20, 0.06);
 
+  --bg-sidebar: #FDFBF9;
+
   --chart-tooltip-bg: #FFFFFF;
   --chart-tooltip-border: #D9CFBC;
   --chart-tooltip-text: #0F1A2B;
@@ -122,135 +126,6 @@ input, select { font-family: inherit; }
 }
 
 .screen { width: 100%; }
-
-/* ==========================================================================
-   Sidebar Navigation (Desktop & Mobile)
-========================================================================== */
-
-/* --- DESKTOP LAYOUT (Unchanged structure) --- */
-.sidebar {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  justify-content: space-between;
-  padding: 14px 16px;
-  border-bottom: 1px solid var(--border-subtle);
-  background: #0B1522;
-}
-
-.brand {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  cursor: pointer;
-  margin-bottom: 0; /* Fixed spacing */
-  padding: 0;
-}
-
-.brand-mark { font-size: 18px; color: var(--accent-gold); }
-.brand-name {
-  font-family: var(--font-serif);
-  font-size: 18px;
-  font-weight: 600;
-  letter-spacing: 0.01em;
-  color: var(--text-bright);
-}
-
-/* Wrapper to center the tabs on desktop */
-.nav-scroll-container {
-  flex: 1;
-  display: flex;
-  justify-content: center;
-  margin: 0 20px;
-}
-
-.nav-list {
-  display: flex;
-  gap: 4px;
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-
-.nav-item {
-  background: none;
-  border: none;
-  color: var(--text-muted);
-  font-size: 13px;
-  padding: 8px 10px;
-  border-radius: 4px;
-  cursor: pointer;
-  white-space: nowrap;
-  transition: all 0.2s;
-}
-
-.nav-item:hover { color: var(--text-primary); }
-.nav-item-active {
-  color: var(--text-bright);
-  background: var(--bg-card);
-}
-
-.sidebar-footer {
-  margin-top: 0;
-  padding: 0;
-}
-
-
-/* --- MOBILE LAYOUT (The New 2-Row Structure) --- */
-@media (max-width: 767px) {
-  .sidebar {
-    display: grid;
-    grid-template-columns: 1fr auto; /* Brand takes space, Avatar takes auto width */
-    grid-template-rows: auto auto;    /* Row 1: Header, Row 2: Tabs */
-    align-items: center;
-    gap: 12px 16px;                   /* Row gap, Column gap */
-    padding: 12px 18px;
-  }
-
-  /* Row 1: Brand on Left */
-  .brand {
-    grid-column: 1;
-    grid-row: 1;
-    display: flex;
-    align-items: center;
-    text-decoration: none;
-    cursor: pointer;
-  }
-
-  /* Row 1: Avatar on Right */
-  .sidebar-footer {
-    grid-column: 2;
-    grid-row: 1;
-    justify-self: end; /* Pushes avatar to the far right edge */
-  }
-
-  /* Row 2: Full width scrollable tabs */
-  .nav-scroll-container {
-    grid-column: 1 / -1; /* Spans across both columns */
-    grid-row: 2;
-    margin: 0;
-    overflow-x: auto;    /* Enables horizontal scrolling */
-    scrollbar-width: none; /* Firefox */
-    -ms-overflow-style: none; /* IE/Edge */
-    border-top: 1px solid var(--border-subtle); /* Subtle separator line */
-    padding-top: 12px;
-  }
-
-  .nav-scroll-container::-webkit-scrollbar {
-    display: none; /* Chrome/Safari */
-  }
-
-  .nav-list {
-    width: max-content; /* Prevents wrapping so it can scroll */
-    gap: 8px;           /* Slightly larger gap for touch targets */
-  }
-
-  .nav-item {
-    padding: 8px 14px;  /* Larger touch area */
-    border-radius: 20px; /* Pill shape for active state on mobile */
-    font-size: 14px;
-  }
-}
 
 .avatar-btn {
   background: none;
@@ -405,42 +280,6 @@ input, select { font-family: inherit; }
 .btn-danger:disabled {
   opacity: 0.6;
   cursor: not-allowed;
-}
-
-.brand { display: flex; align-items: center; gap: 8px; cursor: pointer; text-decoration: none;}
-.brand-mark { font-size: 18px; color: var(--accent-gold); }
-.brand-name {
-  font-family: var(--font-serif);
-  font-size: 18px;
-  font-weight: 600;
-  letter-spacing: 0.01em;
-  color: var(--text-bright);
-}
-
-.nav-list {
-  display: flex;
-  gap: 4px;
-  list-style: none;
-  overflow-x: auto;
-  scrollbar-width: none;
-}
-.nav-list::-webkit-scrollbar { display: none; }
-
-.nav-item {
-  background: none;
-  border: none;
-  color: var(--text-muted);
-  font-size: 13px;
-  padding: 8px 10px;
-  border-radius: 4px;
-  cursor: pointer;
-  white-space: nowrap;
-  transition: all 0.2s;
-}
-.nav-item:hover { color: var(--text-primary); }
-.nav-item-active {
-  color: var(--text-bright);
-  background: var(--bg-card);
 }
 
 /* Typography & Headers */
@@ -857,7 +696,7 @@ input, select { font-family: inherit; }
 /* Net Worth Cards */
 .networth-cards { display: grid; grid-template-columns: 1fr; gap: 12px; margin-bottom: 20px; }
 .networth-card { background: var(--bg-card); border: 1px solid var(--border-card); border-radius: 6px; padding: 16px; }
-.networth-card.main { background: var(--bg-card-alt); border: 1px solid var(--accent-gold); }
+.networth-card.primary { background: var(--bg-card-alt); border: 1px solid var(--accent-gold); }
 .networth-label { font-size: 12px; color: var(--text-muted); margin-bottom: 6px; }
 .networth-value { font-family: var(--font-serif); font-size: 24px; font-weight: 500; color: var(--text-bright); }
 .networth-card.main .networth-value { color: var(--accent-gold); }
@@ -1937,6 +1776,71 @@ PWA Pull-to-Refresh Fix
 :root[data-theme="light"] .goal-bar-fill { background: var(--accent-gold-fill); }
 :root[data-theme="light"] .goal-bar-track { background: #EFEAE0; }
 
+/* 1. Increase the size of the wordmark in both Desktop and Mobile */
+.brand-wordmark {
+  height: 42px; /* Increased from 24px. Change to 30px or 32px if you want it bigger */
+  width: auto;
+  display: block;
+}
+
+@media (max-width: 767px) {
+  .brand-wordmark {
+    height: 32px; /* Increased from 24px. Change to 30px or 32px if you want it bigger */
+  }
+  
+}
+
+/* Default (Dark Mode): Show dark wordmark, hide light wordmark */
+.brand-wordmark-light {
+  display: none;
+}
+
+/* Light Mode: Hide dark wordmark, show light wordmark */
+:root[data-theme="light"] .brand-wordmark-dark {
+  display: none;
+}
+
+:root[data-theme="light"] .brand-wordmark-light {
+  display: block;
+}
+
+/* 2. Mobile Top Bar: Guarantee perfect horizontal alignment */
+.mobile-top-bar {
+  display: flex;
+  align-items: center; /* This is the magic property that vertically centers both items */
+  justify-content: space-between;
+  padding: 12px 16px; /* Slightly tighter padding for a cleaner look */
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--border-card);
+  position: sticky;
+  top: 0;
+  z-index: 90;
+  height: 60px; /* Forces a fixed height so the center axis is mathematically perfect */
+  box-sizing: border-box;
+}
+
+/* Ensure the logo link has no weird default margins */
+.mobile-brand {
+  display: flex;
+  align-items: center;
+  text-decoration: none;
+  margin: 0;
+}
+
+/* Ensure the avatar container is perfectly centered on that same axis */
+.mobile-top-bar-footer {
+  display: flex;
+  align-items: center;
+  margin: 0;
+}
+
+/* Override the default avatar button width so it doesn't stretch */
+.mobile-top-bar-footer .avatar-btn {
+  width: auto !important;
+  justify-content: center;
+  margin: 0;
+}
+
 /* About Anchor Vault */
 .about-list-row {
   width: 100%;
@@ -1996,4 +1900,397 @@ PWA Pull-to-Refresh Fix
 
 .about-list-row:hover .about-arrow {
   transform: translateX(3px);
+}
+
+/* ==========================================================================
+   NEW NAVIGATION REFACTOR STYLES
+   (Append this entire block to the bottom of your index.css)
+========================================================================== */
+
+/* --- Desktop Sidebar --- */
+.desktop-sidebar {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0; 
+  bottom: 0;
+  width: 260px;
+  background: var(--bg-sidebar);
+  border-right: 1px solid var(--border-card);
+  flex-direction: column;
+  padding: 16px 16px;
+  z-index: 100;
+}
+
+@media (min-width: 768px) {
+  .desktop-sidebar {
+    display: flex;
+    background: var(--bg-sidebar);
+  }
+}
+
+.sidebar-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+  margin-bottom: 24px;
+  padding: 0 8px;
+}
+
+.sidebar-nav {
+  flex: 1;
+}
+
+.sidebar-nav-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.sidebar-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  background: none;
+  border: none;
+  border-left: 3px solid transparent;
+  color: var(--text-muted);
+  font-size: 14px;
+  padding: 10px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: left;
+}
+
+.sidebar-nav-item:hover {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.sidebar-nav-item-active {
+  color: var(--text-bright);
+  background: var(--bg-card-alt);
+  border-left-color: var(--accent-gold);
+  font-weight: 500;
+}
+
+/* Desktop Sidebar: Avatar & Dropdown Fixes */
+@media (min-width: 768px) {
+  .desktop-sidebar .sidebar-footer {
+    display: flex;
+    justify-content: flex-start;
+    margin-top: auto;
+    padding-top: 16px;
+    border-top: 1px solid var(--border-card);
+    width: 100%;
+  }
+
+  .desktop-sidebar .user-profile-container {
+    justify-content: flex-start;
+    width: auto;
+    padding-left: 12px;
+  }
+
+  .desktop-sidebar .avatar-btn {
+    width: auto !important;
+    justify-content: flex-start !important;
+    padding-left: 0;
+  }
+
+  .desktop-sidebar .glassy-dropdown {
+    top: auto;
+    bottom: calc(100% + 8px);
+    left: 0;
+    right: auto;
+    z-index: 1000;
+  }
+}
+
+/* --- Mobile Top Bar --- */
+.mobile-top-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--border-card);
+  position: sticky;
+  top: 0;
+  z-index: 90;
+}
+
+.mobile-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-decoration: none;
+}
+
+.mobile-top-bar-footer {
+  display: flex;
+  align-items: center;
+}
+
+.mobile-top-bar-footer .avatar-btn {
+  width: auto !important;
+  justify-content: center;
+}
+
+/* Greeting: hidden on mobile (wordmark shows instead), shown on desktop */
+.mobile-top-bar-greeting {
+  display: none;
+  margin: 0;
+  font-family: var(--font-serif);
+  font-size: 18px;
+  font-weight: 500;
+  color: var(--text-bright);
+}
+
+@media (min-width: 768px) {
+  /* Push the bar's content past the fixed 260px sidebar so it isn't hidden behind it */
+  .mobile-top-bar {
+    padding-left: calc(260px + 32px);
+  }
+
+  .mobile-top-bar .mobile-brand {
+    display: none;
+  }
+
+  .mobile-top-bar-greeting {
+    display: block;
+  }
+}
+
+/* --- Mobile Bottom Nav --- */
+.mobile-bottom-nav {
+  display: flex;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: var(--bg-card);
+  border-top: 1px solid var(--border-card);
+  padding: 8px 0 calc(8px + env(safe-area-inset-bottom));
+  z-index: 100;
+}
+
+@media (min-width: 768px) {
+  .mobile-bottom-nav {
+    display: none;
+  }
+}
+
+.bottom-nav-list {
+  display: flex;
+  justify-content: space-around;
+  width: 100%;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.bottom-nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 11px;
+  padding: 4px 12px;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.bottom-nav-item-active {
+  color: var(--accent-gold);
+}
+
+/* --- Slide-up Sheets (More & Customize) --- */
+.sheet-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+  z-index: 200;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  animation: fadeIn 0.2s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.sheet-content {
+  background: var(--bg-card);
+  border-top-left-radius: 16px;
+  border-top-right-radius: 16px;
+  width: 100%;
+  max-width: 500px;
+  max-height: 85vh;
+  overflow-y: auto;
+  padding: 24px;
+  animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes slideUp {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+
+.sheet-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.sheet-header h3 {
+  font-family: var(--font-serif);
+  font-size: 20px;
+  color: var(--text-bright);
+  margin: 0;
+}
+
+.sheet-close-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sheet-subtitle {
+  color: var(--text-muted);
+  font-size: 13px;
+  margin: 0 0 20px 0;
+  line-height: 1.5;
+}
+
+.sheet-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.sheet-list-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  background: none;
+  border: none;
+  color: var(--text-primary);
+  font-size: 15px;
+  padding: 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.2s;
+  text-align: left;
+}
+
+.sheet-list-item:hover {
+  background: var(--bg-card-alt);
+}
+
+.sheet-divider {
+  height: 1px;
+  background: var(--border-card);
+  margin: 16px 0;
+}
+
+/* Customize Sheet Specifics */
+.customize-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--bg-card-alt);
+  border: 1px solid var(--border-card);
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-bottom: 8px;
+}
+
+.customize-item.secondary-item {
+  opacity: 0.7;
+}
+
+.customize-item-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--text-bright);
+  font-size: 14px;
+}
+
+.customize-item-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.icon-btn {
+  background: none;
+  border: 1px solid var(--border-subtle);
+  color: var(--text-muted);
+  border-radius: 4px;
+  padding: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.icon-btn:hover:not(:disabled) {
+  color: var(--text-bright);
+  border-color: var(--accent-gold);
+}
+
+.icon-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.sheet-footer {
+  margin-top: 24px;
+}
+
+.btn-full {
+  width: 100%;
+}
+
+/* --- Main Content Layout Adjustments --- */
+
+/* Desktop: Center content in remaining space, equal gaps */
+@media (min-width: 768px) {
+  .main {
+    margin-left: calc(260px + (100vw - 1260px) / 2);
+    margin-right: auto;
+    width: 100%;
+    max-width: 1000px;
+    padding: 32px 20px 60px;
+  }
+}
+
+/* Mobile: Add bottom padding so content isn't hidden behind the bottom nav */
+@media (max-width: 767px) {
+  .main {
+    padding-bottom: 80px; 
+  }
 }
