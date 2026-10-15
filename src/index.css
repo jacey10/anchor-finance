@@ -2605,14 +2605,88 @@ PWA Pull-to-Refresh Fix
 
 /* --- Main Content Layout Adjustments --- */
 
-/* Desktop: Center content in remaining space, equal gaps */
+/* Base/mobile layout */
+.app {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.main {
+  flex: 1;
+  width: 100%;
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 28px 20px 60px;
+  box-sizing: border-box;
+}
+
+/* Desktop layout */
 @media (min-width: 768px) {
-  .main {
-    margin-left: calc(260px + (100vw - 1260px) / 2);
-    margin-right: auto;
+  .app {
+    display: grid;
+    grid-template-columns: 260px minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
+    min-height: 100vh;
+  }
+
+  .desktop-sidebar {
+    display: flex;
+    grid-column: 1;
+    grid-row: 1 / -1;
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: 260px;
+    box-sizing: border-box;
+    z-index: 100;
+  }
+
+  .mobile-top-bar {
+    grid-column: 2;
+    grid-row: 1;
     width: 100%;
-    max-width: 1000px;
-    padding: 32px 20px 60px;
+    min-width: 0;
+    margin: 0;
+    padding: 16px 32px;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .mobile-top-bar .mobile-brand {
+    display: none;
+  }
+
+  .mobile-top-bar-greeting {
+    display: block;
+    margin: 0;
+  }
+
+  .mobile-top-bar-footer {
+    display: flex;
+    align-items: center;
+    margin-left: auto;
+  }
+
+  /* The provider's wrapper is the actual grid item */
+  .app > div:has(> main.main) {
+    grid-column: 2;
+    grid-row: 2;
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+  }
+
+  .main {
+    width: 100%;
+    max-width: 960px;
+    min-width: 0;
+    margin: 0 auto;
+    padding: 32px 24px 60px;
+    box-sizing: border-box;
   }
 }
 
