@@ -1778,16 +1778,9 @@ PWA Pull-to-Refresh Fix
 
 /* 1. Increase the size of the wordmark in both Desktop and Mobile */
 .brand-wordmark {
-  height: 42px; /* Increased from 24px. Change to 30px or 32px if you want it bigger */
+  height: 28px; /* Increased from 24px. Change to 30px or 32px if you want it bigger */
   width: auto;
   display: block;
-}
-
-@media (max-width: 767px) {
-  .brand-wordmark {
-    height: 32px; /* Increased from 24px. Change to 30px or 32px if you want it bigger */
-  }
-  
 }
 
 /* Default (Dark Mode): Show dark wordmark, hide light wordmark */
@@ -1935,7 +1928,7 @@ PWA Pull-to-Refresh Fix
   gap: 10px;
   text-decoration: none;
   margin-bottom: 24px;
-  padding: 0 8px;
+  padding: 4px 8px;
 }
 
 .sidebar-nav {
@@ -1960,7 +1953,7 @@ PWA Pull-to-Refresh Fix
   border: none;
   border-left: 3px solid transparent;
   color: var(--text-muted);
-  font-size: 14px;
+  font-size: 15px;
   padding: 10px 12px;
   border-radius: 6px;
   cursor: pointer;
