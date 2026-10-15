@@ -206,42 +206,216 @@ input, select { font-family: inherit; }
 .logout-btn { color: #EF4444; }
 .logout-btn:hover { background: rgba(239, 68, 68, 0.1); }
 
-/* Profile Screen Styles */
+
+/* =========================================
+   PROFILE SCREEN
+   ========================================= */
+
 .profile-card {
   background: var(--bg-card);
   border: 1px solid var(--border-card);
   border-radius: 12px;
   padding: 32px;
-  display: flex;
-  align-items: center;
+
+  display: grid;
+  grid-template-columns: 180px minmax(0, 1fr) minmax(0, 1fr);
   gap: 24px;
+  align-items: start;
+
   margin-bottom: 32px;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
-.profile-avatar-large {
-  width: 80px;
-  height: 80px;
-  border-radius: 50%;
-  background: var(--accent-gold);
-  color: #1a1a1a;
-  font-size: 32px;
-  font-weight: 600;
+/* =========================================
+   PROFILE COLUMNS
+   ========================================= */
+
+.profile-col-avatar {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
+  gap: 12px;
+  min-width: 0;
+}
+
+.profile-col-info,
+.profile-col-name {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.profile-col-name .auth-input {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 .profile-info {
   flex: 1;
+  min-width: 0;
 }
 
 .profile-email {
   font-size: 16px;
   color: var(--text-bright);
-  margin: 4px 0 0 0;
-  word-break: break-all;
+  margin: 4px 0 0;
+  overflow-wrap: anywhere;
 }
+
+/* =========================================
+   PROFILE AVATAR
+   ========================================= */
+
+.profile-avatar-wrap {
+  position: relative;
+  width: 80px;
+  height: 80px;
+  flex-shrink: 0;
+}
+
+.profile-avatar-large {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+
+  border: none;
+  border-radius: 50%;
+  appearance: none;
+  box-sizing: border-box;
+
+  background: var(--accent-gold);
+  color: #1a1a1a;
+
+  font-family: inherit;
+  font-size: 32px;
+  font-weight: 600;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  flex-shrink: 0;
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.profile-avatar-large:disabled {
+  cursor: default;
+}
+
+.avatar-img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+}
+
+/* Hover overlay */
+
+.profile-avatar-overlay {
+  position: absolute;
+  inset: 0;
+
+  background: rgba(0, 0, 0, 0.5);
+  border-radius: 50%;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  pointer-events: none;
+}
+
+.profile-avatar-large:hover .profile-avatar-overlay,
+.profile-avatar-large:focus-visible .profile-avatar-overlay {
+  opacity: 1;
+}
+
+.profile-avatar-pencil {
+  color: white;
+  width: 24px;
+  height: 24px;
+}
+
+.profile-avatar-large:focus-visible {
+  outline: 2px solid var(--accent-gold);
+  outline-offset: 3px;
+}
+
+/* =========================================
+   REMOVE PHOTO TOOLTIP
+   ========================================= */
+
+.profile-avatar-tooltip {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+
+  background: var(--bg-card);
+  border: 1px solid var(--border-card);
+  border-radius: 8px;
+  padding: 8px;
+
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+
+  z-index: 100;
+  white-space: nowrap;
+}
+
+.profile-avatar-tooltip button {
+  display: block;
+  width: 100%;
+  padding: 6px 12px;
+
+  background: none;
+  border: none;
+  border-radius: 6px;
+
+  color: var(--accent-red);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  text-align: left;
+
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.profile-avatar-tooltip button:hover,
+.profile-avatar-tooltip button:focus-visible {
+  background: rgba(184, 124, 107, 0.1);
+}
+
+/* =========================================
+   PROFILE ACTIONS
+   ========================================= */
+
+.profile-actions-row {
+  display: none;
+}
+
+/* Keep buttons within their grid columns */
+
+.profile-col-avatar .btn-outline {
+  max-width: 100%;
+  white-space: nowrap;
+}
+
+.profile-col-name .btn-outline {
+  align-self: stretch;
+}
+
+/* =========================================
+   DANGER ZONE
+   ========================================= */
 
 .danger-zone {
   background: rgba(255, 107, 107, 0.05);
@@ -252,7 +426,7 @@ input, select { font-family: inherit; }
 
 .danger-title {
   color: #ff6b6b;
-  margin: 0 0 8px 0;
+  margin: 0 0 8px;
   font-size: 18px;
   font-weight: 600;
 }
@@ -260,7 +434,7 @@ input, select { font-family: inherit; }
 .danger-sub {
   color: var(--text-muted);
   font-size: 14px;
-  margin: 0 0 20px 0;
+  margin: 0 0 20px;
 }
 
 .btn-danger {
@@ -281,6 +455,167 @@ input, select { font-family: inherit; }
   opacity: 0.6;
   cursor: not-allowed;
 }
+
+/* =========================================
+   MOBILE RESPONSIVENESS
+   Two columns at the top;
+   full-width name section underneath.
+   ========================================= */
+
+@media (max-width: 767px) {
+  .profile-card {
+    grid-template-columns:
+      minmax(0, 0.85fr)
+      minmax(0, 1.15fr);
+
+    grid-template-areas:
+      "avatar info"
+      "name name";
+
+    gap: 24px 16px;
+    align-items: start;
+    padding: 20px;
+  }
+
+  /* First column: avatar + Change Photo */
+
+  .profile-col-avatar {
+    grid-area: avatar;
+    width: 100%;
+    min-width: 0;
+    align-items: center;
+  }
+
+  .profile-avatar-wrap {
+    width: 72px;
+    height: 72px;
+  }
+
+  .profile-avatar-large {
+    font-size: 28px;
+  }
+
+  .profile-avatar-pencil {
+    width: 20px;
+    height: 20px;
+  }
+
+  .profile-col-avatar .btn-outline {
+    display: block;
+    width: 100%;
+    max-width: 140px;
+
+    padding: 8px 6px;
+    font-size: 12px;
+    line-height: 1.4;
+
+    white-space: normal;
+    text-align: center;
+    overflow-wrap: anywhere;
+  }
+
+  /* Second column: email + membership date */
+
+  .profile-col-info {
+    grid-area: info;
+    width: 100%;
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .profile-col-info .form-label {
+    font-size: 12px;
+  }
+
+  .profile-email {
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  /* Third row: display name + Save Name */
+
+  .profile-col-name {
+    grid-area: name;
+    width: 100%;
+    min-width: 0;
+  }
+
+  .profile-col-name .auth-input {
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+  }
+
+  .profile-col-name .btn-outline {
+    display: block;
+    width: 100%;
+    box-sizing: border-box;
+    margin-top: 8px;
+  }
+
+  /* Tooltip must remain above adjacent content */
+
+  .profile-avatar-tooltip {
+    z-index: 100;
+    max-width: calc(100vw - 48px);
+  }
+
+  /* Danger Zone */
+
+  .danger-zone {
+    padding: 20px;
+  }
+
+  .danger-sub {
+    line-height: 1.6;
+  }
+}
+
+/* =========================================
+   SMALL MOBILE SCREENS
+   ========================================= */
+
+@media (max-width: 380px) {
+  .profile-card {
+    padding: 16px;
+    column-gap: 12px;
+  }
+
+  .profile-avatar-wrap {
+    width: 64px;
+    height: 64px;
+  }
+
+  .profile-col-avatar .btn-outline {
+    font-size: 11px;
+    padding: 7px 4px;
+  }
+
+  .profile-email {
+    font-size: 13px;
+  }
+}
+
+/* =========================================
+   TABLET AND DESKTOP
+   ========================================= */
+
+@media (min-width: 768px) {
+  .profile-card {
+    grid-template-areas: none;
+  }
+
+  .profile-col-avatar,
+  .profile-col-info,
+  .profile-col-name {
+    grid-area: auto;
+  }
+
+  .profile-actions-row {
+    display: none;
+  }
+}
+
 
 /* Typography & Headers */
 .page-header { margin-bottom: 32px; }
