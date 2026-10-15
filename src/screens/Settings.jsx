@@ -93,7 +93,7 @@ export default function Settings() {
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `anchor-finance-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.download = `epsilon-${new Date().toISOString().slice(0, 10)}.csv`;
     a.click();
   };
 
@@ -104,7 +104,7 @@ export default function Settings() {
       if (navigator.share) {
         await navigator.share({
           title: 'Anchor Vault',
-          text: 'Take control of your personal finances with Anchor Vault.',
+          text: 'Take control of your personal finances with Epsilon.',
           url: shareUrl,
         });
       } else {
