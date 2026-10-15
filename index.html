@@ -4,7 +4,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <title>Anchor Vault</title>
+    <title>Epsilon</title>
     <meta name="theme-color" content="#0F1B2D" />
 
     <!-- PWA -->
@@ -19,14 +19,14 @@
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <meta name="apple-mobile-web-app-title" content="Anchor" />
+    <meta name="apple-mobile-web-app-title" content="Epsilon" />
 
     <!-- Theme: apply the saved choice before the first paint (inside /app only), so there is no flash -->
     <script>
       (function () {
         try {
           if (location.pathname.indexOf('/app') !== 0) return;
-          var saved = localStorage.getItem('anchor-theme');
+          var saved = localStorage.getItem('epsilon-theme');
           var light = saved === 'light' || (saved !== 'dark' && window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches);
           document.documentElement.setAttribute('data-theme', light ? 'light' : 'dark');
           var bar = document.querySelector('meta[name="theme-color"]');
