@@ -3177,3 +3177,7 @@ PWA Pull-to-Refresh Fix
   line-height: 1.6;
   margin: 0;
 }
+
+/* ───────── Theme-aware preview images ───────── */
+:root[data-theme="light"] .preview-dark { display: none; }
+:root[data-theme="dark"] .preview-light { display: none; }

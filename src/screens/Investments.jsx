@@ -60,7 +60,8 @@ export default function Investments() {
           </p>
         </div>
         <div className="hero-preview">
-          <img src="/assets/investment-preview.png" alt="Investment Dashboard Preview" className="preview-image" />
+          <img src="/assets/investment-preview-light.png" alt="Investment Dashboard Preview (Light)" className="preview-image preview-light" />
+          <img src="/assets/investment-preview-dark.png" alt="Investment Dashboard Preview (Dark)" className="preview-image preview-dark" />
         </div>
       </section>
 
