@@ -44,6 +44,9 @@ export default function Profile({ onLogout }) {
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [imgFailed, setImgFailed] = useState(false);
+  const [displayName, setDisplayName] = useState('');
+  const [savingName, setSavingName] = useState(false);
+  const [nameSaved, setNameSaved] = useState(false);
   const fileInputRef = useRef(null);
 
   const refreshUser = useCallback(async () => {
@@ -58,11 +61,42 @@ export default function Profile({ onLogout }) {
   }, []);
 
   const avatarUrl = user?.user_metadata?.avatar_url;
+  const savedName = user?.user_metadata?.display_name || '';
 
   // If a new photo is set, give the image another chance to load
   useEffect(() => {
     setImgFailed(false);
   }, [avatarUrl]);
+
+  // Fill the name field with the saved name once the user has loaded
+  useEffect(() => {
+    setDisplayName(savedName);
+  }, [savedName]);
+
+  const handleNameSave = async () => {
+    const trimmed = displayName.trim();
+    if (!trimmed) {
+      alert('Please enter a name.');
+      return;
+    }
+
+    setSavingName(true);
+    try {
+      const { data, error } = await supabase.auth.updateUser({
+        data: { display_name: trimmed },
+      });
+      if (error) throw error;
+
+      setUser(data.user);
+      setDisplayName(trimmed);
+      setNameSaved(true);
+      setTimeout(() => setNameSaved(false), 2000);
+    } catch (err) {
+      alert('Error saving name: ' + err.message);
+    } finally {
+      setSavingName(false);
+    }
+  };
 
   const handleAvatarChange = async (e) => {
     const file = e.target.files?.[0];
@@ -149,6 +183,25 @@ export default function Profile({ onLogout }) {
           <p className="profile-email">{user.email}</p>
           <label className="form-label" style={{ marginTop: 16 }}>Member Since</label>
           <p className="profile-email">{new Date(user.created_at).toLocaleDateString()}</p>
+
+          <label className="form-label" style={{ marginTop: 16 }}>Display Name</label>
+          <input
+            type="text"
+            className="auth-input"
+            value={displayName}
+            onChange={(e) => setDisplayName(e.target.value)}
+            placeholder="What should we call you?"
+            maxLength={30}
+            autoComplete="nickname"
+          />
+          <button
+            className="btn btn-outline"
+            style={{ marginTop: 8 }}
+            onClick={handleNameSave}
+            disabled={savingName || !displayName.trim() || displayName.trim() === savedName}
+          >
+            {savingName ? 'Saving...' : nameSaved ? 'Saved ✓' : 'Save name'}
+          </button>
 
           <input
             ref={fileInputRef}
