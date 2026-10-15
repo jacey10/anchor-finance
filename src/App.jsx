@@ -23,6 +23,7 @@ import MobileTopBar from './components/MobileTopBar.jsx';
 import MobileBottomNav from './components/MobileBottomNav.jsx';
 import MoreMenuSheet from './components/MoreMenuSheet.jsx';
 import CustomizeMenuSheet from './components/CustomizeMenuSheet.jsx';
+import ThemePickerSheet from './components/ThemePickerSheet.jsx';
 import { BalanceVisibilityProvider } from './components/BalanceVisibility.jsx';
 
 const SCREENS = ['dashboard', 'income', 'expenses', 'family', 'goals', 'networth', 'settings', 'profile'];
@@ -61,6 +62,7 @@ function AppLayout() {
   const navigate = useNavigate();
 
   const [isMoreOpen, setIsMoreOpen] = useState(false);
+  const [isThemePickerOpen, setIsThemePickerOpen] = useState(false);
   const [isCustomizeOpen, setIsCustomizeOpen] = useState(false);
 
   // /app/income -> ['', 'app', 'income'] -> 'income'
@@ -109,6 +111,12 @@ function AppLayout() {
           setIsMoreOpen(false);
           setIsCustomizeOpen(true);
         }}
+        onThemeClick={() => setIsThemePickerOpen(true)}
+      />
+
+      <ThemePickerSheet
+        isOpen={isThemePickerOpen}
+        onClose={() => setIsThemePickerOpen(false)}
       />
 
       <CustomizeMenuSheet

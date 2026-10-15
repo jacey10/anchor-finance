@@ -20,7 +20,7 @@ const SECONDARY_ITEMS = [
   { key: 'settings', label: 'Settings', icon: Settings }
 ];
 
-export default function MoreMenuSheet({ isOpen, onClose, setScreen, onCustomizeClick }) {
+export default function MoreMenuSheet({ isOpen, onClose, setScreen, onCustomizeClick, onThemeClick }) {
   if (!isOpen) return null;
 
   return (
@@ -57,10 +57,9 @@ export default function MoreMenuSheet({ isOpen, onClose, setScreen, onCustomizeC
 
         <ul className="sheet-list">
           <li>
-            <button className="sheet-list-item" onClick={() => {}}>
+            <button className="sheet-list-item" onClick={onThemeClick}>
               <Palette size={20} />
               <span>Theme</span>
-              {/* Theme toggle logic would go here, or we can render the existing ThemeToggle component */}
             </button>
           </li>
           <li>

@@ -2069,6 +2069,86 @@ PWA Pull-to-Refresh Fix
 }
 
 /* ==========================================================================
+   Theme Picker Floating Sheet
+========================================================================== */
+.theme-picker-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.2);
+  backdrop-filter: blur(5px);
+  z-index: 300; /* Sits above the More sheet (z-index: 200) */
+  display: flex;
+  justify-content: flex-end;
+  align-items: flex-end;
+  padding-bottom: 136px; /* Positions it just above the Theme row */
+  padding-right: 16px;
+  animation: fadeIn 0.2s ease-out;
+}
+
+.theme-picker-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-card);
+  border-radius: 12px;
+  padding: 8px;
+  width: 180px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  animation: slideUp 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.theme-picker-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  background: none;
+  border: none;
+  padding: 10px 12px;
+  color: var(--text-primary);
+  font-size: 14px;
+  cursor: pointer;
+  border-radius: 8px;
+  transition: background 0.2s;
+}
+
+.theme-picker-row:hover {
+  background: var(--bg-card-alt);
+}
+
+.theme-picker-label {
+  font-weight: 500;
+}
+
+/* Custom Toggle Switch */
+.theme-toggle-switch {
+  width: 36px;
+  height: 20px;
+  background: var(--border-subtle);
+  border-radius: 10px;
+  position: relative;
+  transition: background 0.2s;
+}
+
+.theme-toggle-switch.on {
+  background: var(--accent-gold);
+}
+
+.theme-toggle-knob {
+  width: 16px;
+  height: 16px;
+  background: #ffffff;
+  border-radius: 50%;
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  transition: transform 0.2s;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.theme-toggle-switch.on .theme-toggle-knob {
+  transform: translateX(16px);
+}
+
+/* ==========================================================================
    Light theme: colours that were hard-coded for dark (inside /app only)
 ========================================================================== */
 :root[data-theme="light"] .sidebar { background: #FFFFFF; }
