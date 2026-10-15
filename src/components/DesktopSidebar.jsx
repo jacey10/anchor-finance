@@ -7,9 +7,10 @@ import {
   Users,
   Target,
   LineChart,
-  Landmark
+  Landmark,
+  Crown,
+  ShieldCheck
 } from 'lucide-react';
-
 // Import the wordmarks
 import wordmarkDark from '../assets/wordmark-dark.svg';
 import wordmarkLight from '../assets/wordmark-light.svg';
@@ -27,7 +28,6 @@ const NAV_ITEMS = [
 export default function DesktopSidebar({ activeScreen, setScreen }) {
   return (
     <aside className="desktop-sidebar">
-
       <Link
         to="/app/dashboard"
         className="sidebar-brand"
@@ -36,13 +36,11 @@ export default function DesktopSidebar({ activeScreen, setScreen }) {
         <img src={wordmarkDark} alt="Epsilon" className="brand-wordmark brand-wordmark-dark" />
         <img src={wordmarkLight} alt="Epsilon" className="brand-wordmark brand-wordmark-light" />
       </Link>
-
       <nav className="sidebar-nav">
         <ul className="sidebar-nav-list">
           {NAV_ITEMS.map((item) => {
             const Icon = item.icon;
             const isActive = activeScreen === item.key;
-
             return (
               <li key={item.key}>
                 <button
@@ -51,12 +49,26 @@ export default function DesktopSidebar({ activeScreen, setScreen }) {
                 >
                   <Icon size={18} />
                   <span>{item.label}</span>
+                  {item.key === 'investments' && <span className="pro-badge">PRO</span>}
                 </button>
               </li>
             );
           })}
         </ul>
       </nav>
+      <div className="sidebar-footer">
+        <div className="pro-member-card">
+          <div className="pro-card-header">
+            <Crown size={18} className="pro-card-icon" />
+            <span className="pro-card-title">Pro Member</span>
+          </div>
+          <p className="pro-card-text">Your financial tools, all in one place.</p>
+          <div className="pro-card-status">
+            <ShieldCheck size={14} />
+            Early access enabled
+          </div>
+        </div>
+      </div>
     </aside>
   );
 }

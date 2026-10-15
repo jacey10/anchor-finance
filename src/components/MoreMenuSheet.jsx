@@ -22,7 +22,6 @@ const SECONDARY_ITEMS = [
 
 export default function MoreMenuSheet({ isOpen, onClose, setScreen, onCustomizeClick, onThemeClick }) {
   if (!isOpen) return null;
-
   return (
     <div className="sheet-overlay" onClick={onClose}>
       <div className="sheet-content more-sheet" onClick={(e) => e.stopPropagation()}>
@@ -32,7 +31,6 @@ export default function MoreMenuSheet({ isOpen, onClose, setScreen, onCustomizeC
             <X size={20} />
           </button>
         </div>
-
         <ul className="sheet-list">
           {SECONDARY_ITEMS.map((item) => {
             const Icon = item.icon;
@@ -47,14 +45,13 @@ export default function MoreMenuSheet({ isOpen, onClose, setScreen, onCustomizeC
                 >
                   <Icon size={20} />
                   <span>{item.label}</span>
+                  {item.key === 'investments' && <span className="pro-badge">PRO</span>}
                 </button>
               </li>
             );
           })}
         </ul>
-
         <div className="sheet-divider" />
-
         <ul className="sheet-list">
           <li>
             <button className="sheet-list-item" onClick={onThemeClick}>

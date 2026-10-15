@@ -14,6 +14,7 @@ import Income from './screens/Income.jsx';
 import Expenses from './screens/Expenses.jsx';
 import Family from './screens/Family.jsx';
 import Goals from './screens/Goals.jsx';
+import Investments from './screens/Investments.jsx';
 import NetWorth from './screens/NetWorth.jsx';
 import Settings from './screens/Settings.jsx';
 import Profile from './screens/Profile.jsx';
@@ -26,33 +27,33 @@ import CustomizeMenuSheet from './components/CustomizeMenuSheet.jsx';
 import ThemePickerSheet from './components/ThemePickerSheet.jsx';
 import { BalanceVisibilityProvider } from './components/BalanceVisibility.jsx';
 
-const SCREENS = ['dashboard', 'income', 'expenses', 'family', 'goals', 'networth', 'settings', 'profile'];
+const SCREENS = ['dashboard', 'income', 'expenses', 'family', 'goals', 'investments', 'networth', 'settings', 'profile'];
 
 // --- 1. PROTECTED ROUTE (The Bouncer) ---
 function ProtectedRoute({ children }) {
   const { session, loading } = useSession();
-  if (loading) return <div className="loading-screen" style={{ padding: 20, textAlign: 'center' }}>Loading Anchor...</div>;
+  if (loading) return <div className="loading-screen" style={{ padding: 20, textAlign: 'center' }}>Loading Epsilon...</div>;
   if (!session) {
     return <Navigate to="/signin" replace />;
   }
   return children;
 }
 
-// --- 2. ROOT ROUTE (Smart entry point for "/") ---
+// --- 2. ROOT ROUTE (Smart entry point for  "/ ") ---
 // Three-way check:
 //   valid session      -> Dashboard
 //   no session + flag  -> Auth (signin)
 //   neither             -> Landing page
 function RootRoute() {
   const { session, loading } = useSession();
-  if (loading) return <div className="loading-screen" style={{ padding: 20, textAlign: 'center' }}>Loading Anchor...</div>;
+  if (loading) return  <div className= "loading-screen" style={{ padding: 20, textAlign: 'center' }} >Loading Anchor... </div >;
   if (session) {
-    return <Navigate to="/app" replace />;
+    return  <Navigate to= "/app" replace / >;
   }
   if (getHasAccount()) {
-    return <Navigate to="/signin" replace />;
+    return  <Navigate to= "/signin" replace / >;
   }
-  return <LandingPage />;
+  return  <LandingPage / >;
 }
 
 // --- 3. APP LAYOUT (Sidebar + Content) ---
@@ -60,7 +61,6 @@ function RootRoute() {
 function AppLayout() {
   const location = useLocation();
   const navigate = useNavigate();
-
   const [isMoreOpen, setIsMoreOpen] = useState(false);
   const [isThemePickerOpen, setIsThemePickerOpen] = useState(false);
   const [isCustomizeOpen, setIsCustomizeOpen] = useState(false);
@@ -91,18 +91,15 @@ function AppLayout() {
         setScreen={setScreen}
         onLogout={handleLogout}
       />
-
       <MobileTopBar
         setScreen={setScreen}
         onLogout={handleLogout}
       />
-
       <MobileBottomNav
         activeScreen={activeScreen}
         setScreen={setScreen}
         onMoreClick={() => setIsMoreOpen(true)}
       />
-
       <MoreMenuSheet
         isOpen={isMoreOpen}
         onClose={() => setIsMoreOpen(false)}
@@ -113,17 +110,14 @@ function AppLayout() {
         }}
         onThemeClick={() => setIsThemePickerOpen(true)}
       />
-
       <ThemePickerSheet
         isOpen={isThemePickerOpen}
         onClose={() => setIsThemePickerOpen(false)}
       />
-
       <CustomizeMenuSheet
         isOpen={isCustomizeOpen}
         onClose={() => setIsCustomizeOpen(false)}
       />
-
       {/* Wrap main with PullToRefreshProvider */}
       <PullToRefreshProvider>
         <main className="main">
@@ -132,6 +126,7 @@ function AppLayout() {
           {activeScreen === 'expenses' && <Expenses />}
           {activeScreen === 'family' && <Family />}
           {activeScreen === 'goals' && <Goals />}
+          {activeScreen === 'investments' && <Investments />}
           {activeScreen === 'networth' && <NetWorth />}
           {activeScreen === 'settings' && <Settings />}
           {activeScreen === 'profile' && <Profile onLogout={handleLogout} />}
@@ -155,38 +150,35 @@ function ThemeScope({ children }) {
   return children;
 }
 
-// --- 4. MAIN APP & ROUTING ---
+// --- 4. MAIN APP  & ROUTING ---
 export default function App() {
   return (
-    <InstallProvider>
-      <BalanceVisibilityProvider>
-      <Router>
-        <Routes>
-          {/* Smart entry point — session-aware */}
-          <Route path="/" element={<RootRoute />} />
-          
-          {/* Always-static marketing page — for the logo click, session-agnostic.
-               No session checks here at all, on purpose. */}
-          <Route path="/home" element={<LandingPage />} />
-          <Route path="/signin" element={<AuthScreen defaultMode="signin" />} />
-          <Route path="/signup" element={<AuthScreen defaultMode="signup" />} />
-          
-          {/* PRIVATE SIDE */}
-          <Route
-            path="/app/*"
-            element={
-              <ThemeScope>
-                <ProtectedRoute>
-                  <AppLayout />
-                </ProtectedRoute>
-              </ThemeScope>
-            }
-          />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </Router>
+    <InstallProvider >
+      <BalanceVisibilityProvider >
+        <Router >
+          <Routes >
+            {/* Smart entry point — session-aware */}
+            <Route path= "/" element={ <RootRoute / >} / >
+            {/* Always-static marketing page — for the logo click, session-agnostic.
+                  No session checks here at all, on purpose. */}
+            <Route path="/home" element={<LandingPage />} />
+            <Route path="/signin" element={<AuthScreen defaultMode="signin" />} />
+            <Route path="/signup" element={<AuthScreen defaultMode="signup" />} />
+            {/* PRIVATE SIDE */}
+            <Route
+              path="/app/*"
+              element={
+                <ThemeScope>
+                  <ProtectedRoute>
+                    <AppLayout />
+                  </ProtectedRoute>
+                </ThemeScope>
+              }
+            />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </Router>
       </BalanceVisibilityProvider>
     </InstallProvider>
   );
 }
-
