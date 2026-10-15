@@ -113,7 +113,7 @@ export default function Settings() {
       }
     } catch (error) {
       if (error.name !== 'AbortError') {
-        console.error('Unable to share Anchor Vault:', error);
+        console.error('Unable to share Epsilon Finance:', error);
         alert('Unable to share the link. Please try again.');
       }
     }
