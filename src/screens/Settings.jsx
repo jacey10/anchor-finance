@@ -103,13 +103,13 @@ export default function Settings() {
     try {
       if (navigator.share) {
         await navigator.share({
-          title: 'Anchor Vault',
+          title: 'Epsilon Finance',
           text: 'Take control of your personal finances with Epsilon.',
           url: shareUrl,
         });
       } else {
         await navigator.clipboard.writeText(shareUrl);
-        alert('Anchor Vault link copied to clipboard!');
+        alert('Epsilon Finance link copied to clipboard!');
       }
     } catch (error) {
       if (error.name !== 'AbortError') {
