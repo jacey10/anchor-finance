@@ -6,6 +6,7 @@ import { setHasAccount } from '../lib/accountFlag';
 export default function AuthScreen({ defaultMode = 'signin' }) {
   const navigate = useNavigate();
   const [isLogin, setIsLogin] = useState(defaultMode === 'signin');
+  const [displayName, setDisplayName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -39,7 +40,13 @@ export default function AuthScreen({ defaultMode = 'signin' }) {
         window.location.href = '/app'; 
 
       } else {
-        const { data, error } = await supabase.auth.signUp({ email, password });
+        // The display name is optional; it's stored in user metadata and used for the greeting
+        const trimmedName = displayName.trim();
+        const { data, error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: { data: trimmedName ? { display_name: trimmedName } : {} }
+        });
         if (error) throw error;
         
         // If Supabase returns a session, it means email confirmation is OFF.
@@ -83,6 +90,21 @@ export default function AuthScreen({ defaultMode = 'signin' }) {
           </div>
 
           <form onSubmit={handleAuth} className="auth-form">
+            {!isLogin && (
+              <div className="input-group">
+                <label className="input-label">What should we call you?</label>
+                <input 
+                  type="text" 
+                  value={displayName} 
+                  onChange={(e) => setDisplayName(e.target.value)} 
+                  className="auth-input" 
+                  placeholder="Your name or nickname"
+                  maxLength={30}
+                  autoComplete="nickname"
+                />
+              </div>
+            )}
+
             <div className="input-group">
               <label className="input-label">Email</label>
               <input 
