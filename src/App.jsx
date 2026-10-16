@@ -46,7 +46,7 @@ function ProtectedRoute({ children }) {
 //   neither             -> Landing page
 function RootRoute() {
   const { session, loading } = useSession();
-  if (loading) return  <div className= "loading-screen" style={{ padding: 20, textAlign: 'center' }} >Loading Anchor... </div >;
+  if (loading) return  <div className= "loading-screen" style={{ padding: 20, textAlign: 'center' }} >Loading Epsilon... </div >;
   if (session) {
     return  <Navigate to= "/app" replace / >;
   }
