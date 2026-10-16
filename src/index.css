@@ -3357,32 +3357,47 @@ PWA Pull-to-Refresh Fix
   }
 }
 
-
-
-/* 3. Kill the Huge Gap Between Desktop Cards */
-@media (min-width: 1024px) {
+  /* Grid Placement using Template Areas */
   .dashboard-grid {
-    gap: 16px 24px !important; /* Tight vertical gap */
+    display: grid;
+    grid-template-columns: 1.6fr 1fr;
+    grid-template-areas:
+      "header month"
+      "networth stats"
+      "spending goals"
+      "trend snapshot"
+      ". impulse";
+    gap: 16px 24px;
+    align-items: stretch; 
   }
 
-  /* Force all grid items to have zero bottom margin */
-  .grid-item-spending, 
-  .grid-item-trend, 
-  .grid-item-goals, 
-  .grid-item-snapshot, 
-  .grid-item-impulse, 
-  .grid-item-networth, 
-  .grid-item-stats {
+  /* Map classes to grid areas */
+  .grid-item-header { grid-area: header; display: flex; flex-direction: column; justify-content: flex-end; padding-bottom: 8px; }
+  .grid-item-monthpicker { grid-area: month; display: flex; justify-content: flex-end; }
+  .grid-item-mobile { display: none; }
+  
+  .grid-item-networth { grid-area: networth; }
+  .grid-item-stats { grid-area: stats; }
+  
+  /* Prevent lower cards from stretching to match row height */
+  .grid-item-spending, .grid-item-goals, .grid-item-trend, .grid-item-snapshot, .grid-item-impulse {
+    align-self: start;
+  }
+
+  .grid-item-spending { grid-area: spending; }
+  .grid-item-goals { grid-area: goals; }
+  
+  .grid-item-trend { grid-area: trend; }
+  .grid-item-snapshot { grid-area: snapshot; }
+  
+  .grid-item-impulse { grid-area: impulse; }
+
+  /* CRITICAL FIX: Kill the default .section margin that causes the gap */
+  .dashboard-grid .section,
+  .dashboard-grid .dashboard-card {
     margin-bottom: 0 !important;
   }
 
-  /* Kill the default .section margin that was causing the gap */
-  .grid-item-spending .section, 
-  .grid-item-trend .section,
-  .grid-item-goals .section {
-    margin-bottom: 0 !important;
-  }
-}
 
 /* ==========================================================================
    SIDEBAR DIVIDER & NAV FIXES
