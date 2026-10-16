@@ -2352,7 +2352,7 @@ PWA Pull-to-Refresh Fix
 
 .sidebar-nav-list {
   list-style: none;
-  padding: 0;
+  padding-top: 0;
   margin: 0;
   display: flex;
   flex-direction: column;
@@ -2368,8 +2368,8 @@ PWA Pull-to-Refresh Fix
   border: none;
   border-left: 3px solid transparent;
   color: var(--text-muted);
-  font-size: 15px;
-  padding: 10px 12px;
+  font-size: 14px;
+  padding: 8px 10px;
   border-radius: 6px;
   cursor: pointer;
   transition: all 0.2s;
@@ -2393,30 +2393,7 @@ PWA Pull-to-Refresh Fix
   .desktop-sidebar .sidebar-footer {
     display: flex;
     justify-content: flex-start;
-    margin-top: auto;
-    padding-top: 16px;
-    border-top: 1px solid var(--border-card);
     width: 100%;
-  }
-
-  .desktop-sidebar .user-profile-container {
-    justify-content: flex-start;
-    width: auto;
-    padding-left: 12px;
-  }
-
-  .desktop-sidebar .avatar-btn {
-    width: auto !important;
-    justify-content: flex-start !important;
-    padding-left: 0;
-  }
-
-  .desktop-sidebar .glassy-dropdown {
-    top: auto;
-    bottom: calc(100% + 8px);
-    left: 0;
-    right: auto;
-    z-index: 1000;
   }
 }
 
@@ -2790,11 +2767,6 @@ PWA Pull-to-Refresh Fix
   padding: 2px 6px;
   border-radius: 10px;
   margin-left: 8px;
-}
-
-.sidebar-footer {
-  margin-top: auto;
-  padding-top: 16px;
 }
 
 .pro-member-card {
@@ -3181,3 +3153,261 @@ PWA Pull-to-Refresh Fix
 /* ───────── Theme-aware preview images ───────── */
 :root[data-theme="light"] .preview-dark { display: none; }
 :root[data-theme="dark"] .preview-light { display: none; }
+
+
+/* ==========================================================================
+   CLEAN DESKTOP DASHBOARD GRID
+   ========================================================================== */
+
+/* Utility classes for visibility */
+@media (min-width: 1024px) {
+  .mobile-only { display: none !important; }
+  .desktop-only { display: block; }
+}
+
+@media (max-width: 1023px) {
+  .desktop-only { display: none !important; }
+  .mobile-only { display: block !important; }
+}
+
+/* Desktop Grid Layout */
+@media (min-width: 1024px) {
+  .main {
+    max-width: 1200px;
+    padding: 32px 24px 60px;
+  }
+
+  .dashboard-grid {
+    display: grid;
+    grid-template-columns: 1.6fr 1fr;
+    gap: 16px 24px; /* 16px vertical (tight), 24px horizontal */
+    align-items: stretch; /* Forces equal height for Row 2 */
+  }
+
+  /* Grid Placement */
+  .grid-item-header { grid-column: 1; grid-row: 1; display: flex; flex-direction: column; justify-content: flex-end; padding-bottom: 8px; }
+  .grid-item-monthpicker { grid-column: 2; grid-row: 1; display: flex; justify-content: flex-end; }
+  .grid-item-mobile { display: none; }
+  
+  .grid-item-networth { grid-column: 1; grid-row: 2; height: 100%; }
+  .grid-item-stats { grid-column: 2; grid-row: 2; }
+  
+  .grid-item-spending { grid-column: 1; grid-row: 3; }
+  .grid-item-goals { grid-column: 2; grid-row: 3; }
+  
+  .grid-item-trend { grid-column: 1; grid-row: 4; }
+  .grid-item-snapshot { grid-column: 2; grid-row: 4; }
+  
+  .grid-item-impulse { grid-column: 2; grid-row: 5; }
+
+  /* Card Shell */
+  .dashboard-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-card);
+    border-radius: 12px;
+    padding: 24px;
+    margin-bottom: 0;
+  }
+
+  .dashboard-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 16px;
+  }
+
+  .dashboard-card-title {
+    font-family: var(--font-serif);
+    font-size: 18px;
+    font-weight: 500;
+    color: var(--text-bright);
+    margin: 0 0 4px 0;
+  }
+
+  .dashboard-card-sub {
+    font-size: 13px;
+    color: var(--text-muted);
+    margin: 0;
+  }
+
+  /* Stats Grid */
+  .stats-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+
+  .stat-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-card);
+    border-radius: 12px;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .stat-label { font-size: 12px; color: var(--text-muted); margin: 0; }
+  .stat-value { font-family: var(--font-serif); font-size: 20px; font-weight: 500; color: var(--text-bright); margin: 0; }
+  .stat-trend { font-size: 11px; font-weight: 400; margin: 0; }
+  .stat-trend.positive { color: var(--accent-green); }
+  .stat-trend.negative { color: var(--accent-red); }
+  .stat-trend-green { color: var(--accent-green); }
+
+  /* Desktop Goals */
+  .desktop-goal-row {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--border-subtle);
+  }
+  .desktop-goal-row:last-child { border-bottom: none; padding-bottom: 0; }
+  .desktop-goal-header { display: flex; justify-content: space-between; align-items: center; }
+  .desktop-goal-name { font-size: 14px; color: var(--text-primary); font-weight: 500; }
+  .desktop-goal-pct { font-size: 13px; color: var(--accent-gold); font-variant-numeric: tabular-nums; }
+  .desktop-goal-footer { display: flex; justify-content: space-between; font-size: 12px; color: var(--text-muted); }
+  
+  .all-goals-link {
+    background: none;
+    border: none;
+    color: var(--accent-gold);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    padding: 0;
+    text-decoration: none;
+  }
+  .all-goals-link:hover { text-decoration: underline; }
+
+  /* Account Snapshot */
+  .account-snapshot-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border-subtle);
+  }
+  .account-snapshot-row:last-child { border-bottom: none; }
+  .account-snapshot-left { display: flex; align-items: center; gap: 12px; }
+  .account-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    background: var(--bg-card-alt);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    color: var(--accent-gold);
+    font-weight: 600;
+  }
+  .account-name { font-size: 14px; color: var(--text-bright); margin: 0; font-weight: 500; }
+  .account-type { font-size: 12px; color: var(--text-muted); margin: 0; }
+  .account-balance { text-align: right; }
+  .account-amount { font-family: var(--font-serif); font-size: 14px; color: var(--text-bright); margin: 0; }
+  .account-currency { font-size: 11px; color: var(--text-muted); margin: 0; }
+
+  /* Compact Month Picker */
+  .grid-item-monthpicker .month-selector {
+    margin: 0;
+    padding: 6px 12px;
+    gap: 10px;
+  }
+  .grid-item-monthpicker .month-label { font-size: 13px; min-width: auto; }
+  .grid-item-monthpicker .btn-icon { font-size: 14px; padding: 2px 6px; }
+}
+
+/* ==========================================================================
+   FINAL DESKTOP FIXES (Sidebar, Topbar, Gaps)
+   ========================================================================== */
+/* ==========================================================================
+   DESKTOP TOPBAR CONTROLS (Bell & Theme)
+   ========================================================================== */
+
+/* Default: Hidden on mobile */
+.desktop-topbar-controls {
+  display: none !important;
+}
+
+/* Desktop: Visible and side-by-side */
+@media (min-width: 768px) {
+  .desktop-topbar-controls {
+    display: flex !important;
+    flex-direction: row;
+    align-items: center;
+    gap: 12px;
+    margin-right: 16px;
+  }
+
+  .desktop-topbar-controls .btn-icon {
+    color: var(--text-muted);
+    padding: 6px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 0.2s;
+  }
+
+  .desktop-topbar-controls .btn-icon:hover {
+    color: var(--text-bright);
+  }
+}
+
+
+
+/* 3. Kill the Huge Gap Between Desktop Cards */
+@media (min-width: 1024px) {
+  .dashboard-grid {
+    gap: 16px 24px !important; /* Tight vertical gap */
+  }
+
+  /* Force all grid items to have zero bottom margin */
+  .grid-item-spending, 
+  .grid-item-trend, 
+  .grid-item-goals, 
+  .grid-item-snapshot, 
+  .grid-item-impulse, 
+  .grid-item-networth, 
+  .grid-item-stats {
+    margin-bottom: 0 !important;
+  }
+
+  /* Kill the default .section margin that was causing the gap */
+  .grid-item-spending .section, 
+  .grid-item-trend .section,
+  .grid-item-goals .section {
+    margin-bottom: 0 !important;
+  }
+}
+
+/* ==========================================================================
+   SIDEBAR DIVIDER & NAV FIXES
+   ========================================================================== */
+
+/* Primary nav stretches to push the divider and secondary nav down */
+.sidebar-nav {
+  flex: 1; 
+}
+
+/* Divider between primary and secondary navigation */
+.sidebar-divider {
+  height: 1px;
+  width: 100%;
+  background-color: var(--border-color, #e5e7eb);
+  margin: 12px 0;
+  flex-shrink: 0;
+}
+
+/* Smaller Workspace Label */
+.sidebar-section-label {
+  font-size: 10px !important;
+  font-weight: 300;
+  color: var(--text-faint);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 8px 10px;
+}

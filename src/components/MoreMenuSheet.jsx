@@ -8,7 +8,8 @@ import {
   Settings,
   Palette,
   SlidersHorizontal,
-  X
+  X,
+  Lightbulb
 } from 'lucide-react';
 
 const SECONDARY_ITEMS = [
@@ -16,12 +17,14 @@ const SECONDARY_ITEMS = [
   { key: 'family', label: 'Family', icon: Users },
   { key: 'investments', label: 'Investments', icon: LineChart },
   { key: 'networth', label: 'Net Worth', icon: Landmark },
+  { key: 'insights', label: 'Insights', icon: Lightbulb },
   { key: 'profile', label: 'Profile', icon: User },
   { key: 'settings', label: 'Settings', icon: Settings }
 ];
 
 export default function MoreMenuSheet({ isOpen, onClose, setScreen, onCustomizeClick, onThemeClick }) {
   if (!isOpen) return null;
+
   return (
     <div className="sheet-overlay" onClick={onClose}>
       <div className="sheet-content more-sheet" onClick={(e) => e.stopPropagation()}>

@@ -10,7 +10,8 @@ export default function GoalRow({
   onWithdraw,
   onMarkAsPaid,
   onUnmarkAsPaid,
-  onRefreshGoals
+  onRefreshGoals,
+  hideDetails = false
 }) {
   const [showDetails, setShowDetails] = useState(false);
   const [showAttentionDialog, setShowAttentionDialog] = useState(false);
@@ -73,89 +74,86 @@ export default function GoalRow({
           title="Action Required"
         />
       )}
-
       <div className="goal-row-top">
         <span className="goal-name">{goal.name}</span>
         <span className="goal-pct">{fundingPct}%</span>
       </div>
-
       <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 4 }}>
         Funding
       </div>
-
       <div className="goal-bar-track">
         <div
           className={`goal-bar-fill ${isAchieved ? 'is-paid' : ''}`}
           style={{ width: `${fundingPct}%` }}
         />
       </div>
-
       <div className="goal-numbers">
         {formatCompact(fundingTotal)} of {formatCompact(goal.target)}
         {goal.deadline && (
           <span className="goal-deadline"> · Due {goal.deadline}</span>
         )}
       </div>
-
-      <button
-        className="btn-link"
-        onClick={() => setShowDetails(!showDetails)}
-        style={{
-          fontSize: 12,
-          color: 'var(--text-muted)',
-          marginTop: 8,
-          marginBottom: showDetails ? 12 : 0,
-          padding: 0,
-          background: 'none',
-          border: 'none',
-          cursor: 'pointer'
-        }}
-      >
-        {showDetails ? '▼ Hide Details' : '▶ Show Details'}
-      </button>
-
-      {showDetails && (
-        <div className="execution-details" style={{
-          background: 'rgba(184, 147, 95, 0.05)',
-          border: '1px solid var(--border-color)',
-          borderRadius: 8,
-          padding: 12,
-          marginTop: 8,
-          marginBottom: 12
-        }}>
-          <div style={{ marginBottom: 16 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-              <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Execution</span>
-              <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{executionPct}%</span>
+      
+      {!hideDetails && (
+        <>
+          <button
+            className="btn-link"
+            onClick={() => setShowDetails(!showDetails)}
+            style={{
+              fontSize: 12,
+              color: 'var(--text-muted)',
+              marginTop: 8,
+              marginBottom: showDetails ? 12 : 0,
+              padding: 0,
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer'
+            }}
+          >
+            {showDetails ? '▼ Hide Details' : '▶ Show Details'}
+          </button>
+          {showDetails && (
+            <div className="execution-details" style={{
+              background: 'rgba(184, 147, 95, 0.05)',
+              border: '1px solid var(--border-color)',
+              borderRadius: 8,
+              padding: 12,
+              marginTop: 8,
+              marginBottom: 12
+            }}>
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                  <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Execution</span>
+                  <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{executionPct}%</span>
+                </div>
+                <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>
+                  {formatNaira(executionTotal)} / {formatNaira(goal.target)}
+                </div>
+                <div className="goal-bar-track" style={{ height: 6 }}>
+                  <div
+                    className="goal-bar-fill"
+                    style={{ width: `${executionPct}%`, background: '#2ecc71' }}
+                  />
+                </div>
+                <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 6 }}>
+                  {formatNaira(remainingToAchieve)} remaining to achieve goal
+                </div>
+              </div>
+              <div>
+                <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 4 }}>
+                  Virtual Balance
+                </div>
+                <div style={{ fontSize: 14, fontWeight: 600 }}>
+                  {formatNaira(virtualBalance)}
+                </div>
+                <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>
+                  Cash sitting in this goal
+                </div>
+              </div>
             </div>
-            <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>
-              {formatNaira(executionTotal)} / {formatNaira(goal.target)}
-            </div>
-            <div className="goal-bar-track" style={{ height: 6 }}>
-              <div
-                className="goal-bar-fill"
-                style={{ width: `${executionPct}%`, background: '#2ecc71' }}
-              />
-            </div>
-            <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 6 }}>
-              {formatNaira(remainingToAchieve)} remaining to achieve goal
-            </div>
-          </div>
-
-          <div>
-            <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 4 }}>
-              Virtual Balance
-            </div>
-            <div style={{ fontSize: 14, fontWeight: 600 }}>
-              {formatNaira(virtualBalance)}
-            </div>
-            <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>
-              Cash sitting in this goal
-            </div>
-          </div>
-        </div>
+          )}
+        </>
       )}
-
       <div className="goal-actions">
         {isAchieved ? (
           <>
@@ -200,7 +198,6 @@ export default function GoalRow({
           </>
         )}
       </div>
-
       {showAttentionDialog && (
         <div style={{
           position: 'fixed',
