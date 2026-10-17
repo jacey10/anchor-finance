@@ -301,12 +301,12 @@ export default function Dashboard() {
                 </div>
               )}
             </div>
-            <div style={{ width: '120px', height: '60px' }}>
+            <div style={{ width: '240px', height: '135px', marginTop: '3rem', marginRight: '2rem' }}>
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={data.trend}>
                   <defs>
                     <linearGradient id="colorNetWorth" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#B8935F" stopOpacity={0.3}/>
+                      <stop offset="10%" stopColor="#B8935F" stopOpacity={0.3}/>
                       <stop offset="95%" stopColor="#B8935F" stopOpacity={0}/>
                     </linearGradient>
                   </defs>
@@ -360,8 +360,12 @@ export default function Dashboard() {
                       if (viewBox && 'cx' in viewBox && 'cy' in viewBox) {
                         return (
                           <text x={viewBox.cx} y={viewBox.cy} textAnchor="middle" dominantBaseline="central">
-                            <tspan x={viewBox.cx} y={viewBox.cy - 8} style={{ fill: 'var(--text-bright)', fontSize: '18px', fontWeight: 600, fontFamily: 'var(--font-serif)' }}>₦685.4k</tspan>
-                            <tspan x={viewBox.cx} y={viewBox.cy + 12} style={{ fill: 'var(--text-muted)', fontSize: '10px', fontWeight: 500, letterSpacing: '0.05em' }}>TOTAL OUTFLOW</tspan>
+                            <tspan x={viewBox.cx} y={viewBox.cy - 8} style={{ fill: 'var(--text-bright)', fontSize: '18px', fontWeight: 600, fontFamily: 'var(--font-serif)' }}>
+                              {formatCompact(data.expenses)}
+                            </tspan>
+                            <tspan x={viewBox.cx} y={viewBox.cy + 12} style={{ fill: 'var(--text-muted)', fontSize: '10px', fontWeight: 500, letterSpacing: '0.05em' }}>
+                              TOTAL OUTFLOW
+                            </tspan>
                           </text>
                         );
                       }
