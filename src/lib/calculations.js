@@ -19,6 +19,7 @@ export const calculateNetWorth = (transactions, accounts, exchangeRate, asOfDate
       id: acc.id,
       name: acc.name,
       currency: acc.currency || 'NGN',
+      account_type: acc.account_type || 'savings', // Savings or current (used by the dashboard account snapshot)
       starting_balance: Number(acc.starting_balance) || 0, // Keep original for UI display
       balance: initialBalance // Use adjusted balance for math
     };
