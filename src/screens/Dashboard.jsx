@@ -43,11 +43,50 @@ const getTrendTicks = ([min, max]) => {
 
 const formatAxisNaira = (n) => (n < 0 ? '-' + formatCompact(Math.abs(n)) : formatCompact(n));
 
+// Savings rate target (%) used when no 'savings_target' setting has been saved
+const DEFAULT_SAVINGS_TARGET = 40;
+
+// Full name of the month before the selected 'YYYY-MM' month (e.g. 'September')
+const getPreviousMonthName = (monthKey) => {
+  const date = new Date(`${monthKey}-01`);
+  date.setMonth(date.getMonth() - 1);
+  return date.toLocaleString('default', { month: 'long' });
+};
+
+// Month-over-month change in %, or null when the previous month has nothing to compare against
+const getMonthChange = (current, previous) => (previous > 0 ? ((current - previous) / previous) * 100 : null);
+
+// Live values for the desktop stat cards
+// - savingsRate: (goal transfers - goal withdrawals) this month / income this month * 100 (null when there is no income)
+// - activeGoalsCount: goals that are not paid and still below target
+// - onTrackCount: unique goals funded or executed during the selected month
+const calculateCardStats = (monthKey, monthTxs, goals, summary, prevSummary, rate, savingsTargetSetting) => {
+  const toNgn = (tx) => (tx.currency === 'USD' ? Number(tx.amount) * rate : Number(tx.amount));
+  const sumOfType = (type) => monthTxs.filter((tx) => tx.type === type).reduce((total, tx) => total + toNgn(tx), 0);
+  const saved = sumOfType('goal_transfer') - sumOfType('goal_withdrawal');
+
+  const touchedGoalIds = new Set();
+  monthTxs.forEach((tx) => {
+    if (tx.goal_id && (tx.type === 'goal_transfer' || tx.is_goal_execution === true)) touchedGoalIds.add(tx.goal_id);
+  });
+
+  return {
+    savingsRate: summary.income > 0 ? (saved / summary.income) * 100 : null,
+    savingsTarget: savingsTargetSetting > 0 ? savingsTargetSetting : DEFAULT_SAVINGS_TARGET,
+    activeGoalsCount: goals.filter((goal) => !goal.is_paid && goal.current < goal.target).length,
+    onTrackCount: touchedGoalIds.size,
+    prevIncome: prevSummary.income,
+    prevExpenses: prevSummary.totalOutflow,
+    prevMonthName: getPreviousMonthName(monthKey)
+  };
+};
+
 export default function Dashboard() {
   const [data, setData] = useState({
     netWorth: 0, availableBalance: 0, income: 0, expenses: 0,
     impulseTotal: 0, impulsePercentage: 0, impulseBudget: 0,
-    goals: [], expenseBreakdown: [], monthlyChange: 0, percentageChange: 0, trend: [], accounts: []
+    goals: [], expenseBreakdown: [], monthlyChange: 0, percentageChange: 0, trend: [], accounts: [],
+    savingsRate: null, savingsTarget: DEFAULT_SAVINGS_TARGET, activeGoalsCount: 0, onTrackCount: 0, prevIncome: 0, prevExpenses: 0, prevMonthName: ''
   });
   const [rawData, setRawData] = useState({ transactions: [], accounts: [], exchangeRate: 1, goals: [] });
   const [loading, setLoading] = useState(true);
@@ -62,27 +101,22 @@ export default function Dashboard() {
     return calculateHistoricalTrend(rawData.transactions, rawData.accounts, rawData.exchangeRate, rawData.goals);
   }, [rawData.transactions, rawData.accounts, rawData.exchangeRate, rawData.goals]);
 
-  // Account snapshot: NGN savings, NGN current, and the sum of every USD account shown as foreign currency
+  // Account snapshot totals: NGN savings accounts -> Main savings, NGN current accounts -> Everyday spending, all USD accounts -> Dollar reserve
   const accountSnapshot = useMemo(() => {
     const accounts = data.accounts || [];
-    const ngnAccounts = accounts.filter((acc) => acc.currency !== 'USD');
-    const usdAccounts = accounts.filter((acc) => acc.currency === 'USD');
-    const savingsAccounts = ngnAccounts.filter((acc) => acc.account_type !== 'current');
-    const currentAccounts = ngnAccounts.filter((acc) => acc.account_type === 'current');
     const sum = (list) => list.reduce((total, acc) => total + (Number(acc.balance) || 0), 0);
-    const label = (count, currency) => `${count} ${currency} ${count === 1 ? 'account' : 'accounts'}`;
-    return [
-      { key: 'savings', icon: '₦', name: 'Savings', sub: label(savingsAccounts.length, 'NGN'), amount: formatNaira(sum(savingsAccounts)), currency: 'NGN' },
-      { key: 'current', icon: '▣', name: 'Current', sub: label(currentAccounts.length, 'NGN'), amount: formatNaira(sum(currentAccounts)), currency: 'NGN' },
-      { key: 'foreign', icon: '$', name: 'Foreign currency', sub: label(usdAccounts.length, 'USD'), amount: formatUSD(sum(usdAccounts)), currency: 'USD' }
-    ];
+    return {
+      savings: sum(accounts.filter((acc) => acc.currency !== 'USD' && acc.account_type !== 'current')),
+      foreign: sum(accounts.filter((acc) => acc.currency === 'USD')),
+      current: sum(accounts.filter((acc) => acc.currency !== 'USD' && acc.account_type === 'current'))
+    };
   }, [data.accounts]);
 
   useEffect(() => {
     const loadData = async () => {
       try {
-        const [transactions, goals, accounts, rate, impulseBudget] = await Promise.all([
-          getTransactions(), getGoals(), getAccounts(), getSetting('exchange_rate'), getSetting('impulse_budget')
+        const [transactions, goals, accounts, rate, impulseBudget, savingsTargetSetting] = await Promise.all([
+          getTransactions(), getGoals(), getAccounts(), getSetting('exchange_rate'), getSetting('impulse_budget'), getSetting('savings_target')
         ]);
         const safeRate = rate || 1;
         setRawData({ transactions, accounts: accounts || [], exchangeRate: safeRate, goals });
@@ -96,6 +130,7 @@ export default function Dashboard() {
 
         const summary = calculateMonthlySummary(currentMonthTxs, currentMonth, safeRate);
         const prevSummary = calculateMonthlySummary(prevMonthTxs, prevMonthKey, safeRate);
+        const cardStats = calculateCardStats(currentMonth, currentMonthTxs, goals, summary, prevSummary, safeRate, savingsTargetSetting);
 
         const netWorthData = calculateNetWorth(transactions, accounts || [], safeRate, null, goals);
         const availableBalance = calculateAvailableToSpend(netWorthData);
@@ -116,7 +151,7 @@ export default function Dashboard() {
           netWorth: netWorthData.total, availableBalance, income: summary.income, expenses: summary.totalOutflow,
           impulseTotal: summary.impulseTotal, impulsePercentage: summary.impulsePercentage, impulseBudget,
           goals, expenseBreakdown: Object.entries(breakdownMap).map(([name, value]) => ({ name, value })),
-          monthlyChange: currentDelta, percentageChange, trend: trendData, accounts: netWorthData.accounts
+          monthlyChange: currentDelta, percentageChange, trend: trendData, accounts: netWorthData.accounts, ...cardStats
         });
       } catch (error) { console.error("Dashboard failed to load data:", error); } finally { setLoading(false); }
     };
@@ -125,8 +160,8 @@ export default function Dashboard() {
 
   const refreshData = useCallback(async () => {
     try {
-      const [transactions, goals, accounts, rate, impulseBudget] = await Promise.all([
-        getTransactions(), getGoals(), getAccounts(), getSetting('exchange_rate'), getSetting('impulse_budget')
+      const [transactions, goals, accounts, rate, impulseBudget, savingsTargetSetting] = await Promise.all([
+        getTransactions(), getGoals(), getAccounts(), getSetting('exchange_rate'), getSetting('impulse_budget'), getSetting('savings_target')
       ]);
       const safeRate = rate || 1;
       setRawData({ transactions, accounts: accounts || [], exchangeRate: safeRate, goals });
@@ -139,6 +174,7 @@ export default function Dashboard() {
       const prevMonthTxs = transactions.filter((tx) => tx.date.startsWith(prevMonthKey));
       const summary = calculateMonthlySummary(currentMonthTxs, currentMonth, safeRate);
       const prevSummary = calculateMonthlySummary(prevMonthTxs, prevMonthKey, safeRate);
+      const cardStats = calculateCardStats(currentMonth, currentMonthTxs, goals, summary, prevSummary, safeRate, savingsTargetSetting);
       const currentDelta = summary.income - summary.totalOutflow;
       const prevDelta = prevSummary.income - prevSummary.totalOutflow;
       let percentageChange = 0;
@@ -154,7 +190,7 @@ export default function Dashboard() {
         income: summary.income, expenses: summary.totalOutflow, impulseTotal: summary.impulseTotal,
         impulsePercentage: summary.impulsePercentage, impulseBudget,
         expenseBreakdown: Object.entries(breakdownMap).map(([name, value]) => ({ name, value })),
-        monthlyChange: currentDelta, percentageChange, trend: trendData
+        monthlyChange: currentDelta, percentageChange, trend: trendData, ...cardStats
       }));
     } catch (error) { console.error("Dashboard failed to refresh data:", error); }
   }, [currentMonth, trendData]);
@@ -188,6 +224,24 @@ export default function Dashboard() {
     if (!a.deadline && b.deadline) return 1;
     return new Date(a.deadline) - new Date(b.deadline);
   });
+
+  const incomeChange = getMonthChange(data.income, data.prevIncome);
+  const outflowChange = getMonthChange(data.expenses, data.prevExpenses);
+
+  // Savings rate line: compare this month's rate with the target
+  const savingsRateNote = data.savingsRate === null
+    ? 'Add income to see your rate'
+    : data.savingsRate > data.savingsTarget ? `Above your ${data.savingsTarget}% target`
+    : data.savingsRate < data.savingsTarget ? `Below your ${data.savingsTarget}% target`
+    : `On your ${data.savingsTarget}% target`;
+  const savingsRateClass = data.savingsRate !== null && data.savingsRate >= data.savingsTarget ? 'stat-trend-green' : 'negative';
+
+  // Impulse spending status: within budget, over budget, or no budget set
+  const impulseStatus = data.impulseBudget > 0
+    ? (data.impulseTotal <= data.impulseBudget
+      ? { label: 'Within budget', background: 'rgba(143, 169, 138, 0.2)', color: 'var(--accent-green)' }
+      : { label: 'Over budget', background: 'rgba(184, 124, 107, 0.2)', color: 'var(--accent-red)' })
+    : { label: 'No budget set', background: 'rgba(138, 152, 165, 0.2)', color: 'var(--text-muted)' };
 
   if (loading) return <div className="loading">Loading your finances...</div>;
 
@@ -338,22 +392,26 @@ export default function Dashboard() {
           <div className="stat-card">
             <p className="stat-label">Income this month</p>
             <p className="stat-value"><Amount value={formatNaira(data.income)} /></p>
-            <p className="stat-trend positive">↑ 8.4% from September</p>
+            <p className={`stat-trend ${incomeChange === null ? '' : incomeChange >= 0 ? 'positive' : 'negative'}`}>
+              {incomeChange === null ? `No data for ${data.prevMonthName}` : `${incomeChange >= 0 ? '↑' : '↓'} ${Math.abs(incomeChange).toFixed(1)}% from ${data.prevMonthName}`}
+            </p>
           </div>
           <div className="stat-card">
             <p className="stat-label">Outflow this month</p>
             <p className="stat-value"><Amount value={formatNaira(data.expenses)} /></p>
-            <p className="stat-trend negative">↑ 2.1% from September</p>
+            <p className={`stat-trend ${outflowChange === null ? '' : outflowChange > 0 ? 'negative' : 'positive'}`}>
+              {outflowChange === null ? `No data for ${data.prevMonthName}` : `${outflowChange >= 0 ? '↑' : '↓'} ${Math.abs(outflowChange).toFixed(1)}% from ${data.prevMonthName}`}
+            </p>
           </div>
           <div className="stat-card">
             <p className="stat-label">Savings rate</p>
-            <p className="stat-value">45.2%</p>
-            <p className="stat-trend stat-trend-green">Above your 40% target</p>
+            <p className="stat-value">{data.savingsRate === null ? '—' : `${data.savingsRate.toFixed(1)}%`}</p>
+            <p className={`stat-trend ${savingsRateClass}`}>{savingsRateNote}</p>
           </div>
           <div className="stat-card">
             <p className="stat-label">Active goals</p>
-            <p className="stat-value">4 goals</p>
-            <p className="stat-trend stat-trend-green">2 on track this month</p>
+            <p className="stat-value">{data.activeGoalsCount} {data.activeGoalsCount === 1 ? 'goal' : 'goals'}</p>
+            <p className="stat-trend stat-trend-green">{data.onTrackCount} on track this month</p>
           </div>
         </div>
 
@@ -473,15 +531,27 @@ export default function Dashboard() {
             </div>
             <button className="btn-link all-goals-link">Accounts ↗</button>
           </div>
-          {accountSnapshot.map((row) => (
-            <div key={row.key} className="account-snapshot-row">
-              <div className="account-snapshot-left">
-                <div className="account-icon">{row.icon}</div>
-                <div><p className="account-name">{row.name}</p><p className="account-type">{row.sub}</p></div>
-              </div>
-              <div className="account-balance"><p className="account-amount"><Amount value={row.amount} /></p><p className="account-currency">{row.currency} · Available</p></div>
+          <div className="account-snapshot-row">
+            <div className="account-snapshot-left">
+              <div className="account-icon">₦</div>
+              <div><p className="account-name">Main savings</p><p className="account-type">Savings account</p></div>
             </div>
-          ))}
+            <div className="account-balance"><p className="account-amount"><Amount value={formatNaira(accountSnapshot.savings)} /></p><p className="account-currency">NGN · Available</p></div>
+          </div>
+          <div className="account-snapshot-row">
+            <div className="account-snapshot-left">
+              <div className="account-icon">$</div>
+              <div><p className="account-name">Dollar reserve</p><p className="account-type">Foreign currency</p></div>
+            </div>
+            <div className="account-balance"><p className="account-amount"><Amount value={formatUSD(accountSnapshot.foreign)} /></p><p className="account-currency">USD · Available</p></div>
+          </div>
+          <div className="account-snapshot-row">
+            <div className="account-snapshot-left">
+              <div className="account-icon">▣</div>
+              <div><p className="account-name">Everyday spending</p><p className="account-type">Current account</p></div>
+            </div>
+            <div className="account-balance"><p className="account-amount"><Amount value={formatNaira(accountSnapshot.current)} /></p><p className="account-currency">NGN · Available</p></div>
+          </div>
         </div>
 
         {/* Row 5: Impulse Spending */}
@@ -491,7 +561,7 @@ export default function Dashboard() {
               <h2 className="dashboard-card-title section-title" style={{ margin: 0 }}>Impulse spending</h2>
               <p className="dashboard-card-sub">Discretionary purchases this month</p>
             </div>
-            <span className="tag-impulse" style={{ background: 'rgba(143, 169, 138, 0.2)', color: 'var(--accent-green)' }}>Within budget</span>
+            <span className="tag-impulse" style={{ background: impulseStatus.background, color: impulseStatus.color }}>{impulseStatus.label}</span>
           </div>
           <div style={{ marginTop: '16px' }}>
             <p className="stat-label">SPENT SO FAR</p>
@@ -502,7 +572,7 @@ export default function Dashboard() {
                 <p className="stat-value" style={{ fontSize: '16px' }}>{Math.round(data.impulsePercentage)}%</p>
               </div>
             </div>
-            <div className="goal-bar-track"><div className="goal-bar-fill" style={{ width: `${Math.min(data.impulsePercentage, 100)}%`, background: 'var(--accent-green)' }} /></div>
+            <div className="goal-bar-track"><div className="goal-bar-fill" style={{ width: `${Math.min(data.impulsePercentage, 100)}%`, background: data.impulseBudget > 0 && data.impulseTotal > data.impulseBudget ? 'var(--accent-red)' : 'var(--accent-green)' }} /></div>
           </div>
         </div>
 
