@@ -1,4 +1,4 @@
-import React, { useLayoutEffect } from 'react';
+import React, { useLayoutEffect, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useSession } from './hooks/useSession';
 import { getHasAccount } from './lib/accountFlag';
@@ -6,7 +6,6 @@ import { supabase } from './lib/supabase';
 import { applyTheme, clearTheme, watchSystemTheme } from './lib/theme';
 import { InstallProvider } from './InstallContext';
 import { PullToRefreshProvider } from './hooks/RefreshContext'; // <-- Added for pull-to-refresh
-
 // Import all your screens
 import LandingPage from './screens/LandingPage.jsx';
 import AuthScreen from './screens/AuthScreen.jsx';
@@ -15,20 +14,26 @@ import Income from './screens/Income.jsx';
 import Expenses from './screens/Expenses.jsx';
 import Family from './screens/Family.jsx';
 import Goals from './screens/Goals.jsx';
+import Investments from './screens/Investments.jsx';
 import NetWorth from './screens/NetWorth.jsx';
 import Settings from './screens/Settings.jsx';
 import Profile from './screens/Profile.jsx';
-
+import Insights from './screens/Insights.jsx';
 // Import components
-import Sidebar from './components/Sidebar.jsx';
+import DesktopSidebar from './components/DesktopSidebar.jsx';
+import MobileTopBar from './components/MobileTopBar.jsx';
+import MobileBottomNav from './components/MobileBottomNav.jsx';
+import MoreMenuSheet from './components/MoreMenuSheet.jsx';
+import CustomizeMenuSheet from './components/CustomizeMenuSheet.jsx';
+import ThemePickerSheet from './components/ThemePickerSheet.jsx';
 import { BalanceVisibilityProvider } from './components/BalanceVisibility.jsx';
 
-const SCREENS = ['dashboard', 'income', 'expenses', 'family', 'goals', 'networth', 'settings', 'profile'];
+const SCREENS = ['dashboard', 'income', 'expenses', 'family', 'goals', 'investments', 'networth', 'settings', 'profile', 'insights'];
 
 // --- 1. PROTECTED ROUTE (The Bouncer) ---
 function ProtectedRoute({ children }) {
   const { session, loading } = useSession();
-  if (loading) return <div className="loading-screen" style={{ padding: 20, textAlign: 'center' }}>Loading Anchor...</div>;
+  if (loading) return <div className="loading-screen" style={{ padding: 20, textAlign: 'center' }}>Loading Epsilon...</div>;
   if (!session) {
     return <Navigate to="/signin" replace />;
   }
@@ -42,7 +47,7 @@ function ProtectedRoute({ children }) {
 //   neither             -> Landing page
 function RootRoute() {
   const { session, loading } = useSession();
-  if (loading) return <div className="loading-screen" style={{ padding: 20, textAlign: 'center' }}>Loading Anchor...</div>;
+  if (loading) return <div className="loading-screen" style={{ padding: 20, textAlign: 'center' }}>Loading Epsilon...</div>;
   if (session) {
     return <Navigate to="/app" replace />;
   }
@@ -57,17 +62,21 @@ function RootRoute() {
 function AppLayout() {
   const location = useLocation();
   const navigate = useNavigate();
+  const [isMoreOpen, setIsMoreOpen] = useState(false);
+  const [isThemePickerOpen, setIsThemePickerOpen] = useState(false);
+  const [isCustomizeOpen, setIsCustomizeOpen] = useState(false);
+
   // /app/income -> ['', 'app', 'income'] -> 'income'
   const segment = location.pathname.split('/')[2];
-  
+
   // /app or an unknown screen -> clean redirect to the dashboard
   if (!SCREENS.includes(segment)) {
     return <Navigate to="/app/dashboard" replace />;
   }
-  
+
   const activeScreen = segment;
   const setScreen = (key) => navigate(`/app/${key}`);
-  
+
   const handleLogout = async () => {
     await supabase.auth.signOut();
     // NOTE: hasAccount is intentionally left untouched here.
@@ -78,7 +87,39 @@ function AppLayout() {
 
   return (
     <div className="app">
-      <Sidebar activeScreen={activeScreen} setScreen={setScreen} onLogout={handleLogout} />
+      <DesktopSidebar
+        activeScreen={activeScreen}
+        setScreen={setScreen}
+        onLogout={handleLogout}
+        onThemeClick={() => setIsThemePickerOpen(true)}
+      />
+      <MobileTopBar
+        setScreen={setScreen}
+        onLogout={handleLogout}
+      />
+      <MobileBottomNav
+        activeScreen={activeScreen}
+        setScreen={setScreen}
+        onMoreClick={() => setIsMoreOpen(true)}
+      />
+      <MoreMenuSheet
+        isOpen={isMoreOpen}
+        onClose={() => setIsMoreOpen(false)}
+        setScreen={setScreen}
+        onCustomizeClick={() => {
+          setIsMoreOpen(false);
+          setIsCustomizeOpen(true);
+        }}
+        onThemeClick={() => setIsThemePickerOpen(true)}
+      />
+      <ThemePickerSheet
+        isOpen={isThemePickerOpen}
+        onClose={() => setIsThemePickerOpen(false)}
+      />
+      <CustomizeMenuSheet
+        isOpen={isCustomizeOpen}
+        onClose={() => setIsCustomizeOpen(false)}
+      />
       {/* Wrap main with PullToRefreshProvider */}
       <PullToRefreshProvider>
         <main className="main">
@@ -87,9 +128,11 @@ function AppLayout() {
           {activeScreen === 'expenses' && <Expenses />}
           {activeScreen === 'family' && <Family />}
           {activeScreen === 'goals' && <Goals />}
+          {activeScreen === 'investments' && <Investments />}
           {activeScreen === 'networth' && <NetWorth />}
           {activeScreen === 'settings' && <Settings />}
           {activeScreen === 'profile' && <Profile onLogout={handleLogout} />}
+          {activeScreen === 'insights' && <Insights />}
         </main>
       </PullToRefreshProvider>
     </div>
@@ -115,31 +158,29 @@ export default function App() {
   return (
     <InstallProvider>
       <BalanceVisibilityProvider>
-      <Router>
-        <Routes>
-          {/* Smart entry point — session-aware */}
-          <Route path="/" element={<RootRoute />} />
-          
-          {/* Always-static marketing page — for the logo click, session-agnostic.
-               No session checks here at all, on purpose. */}
-          <Route path="/home" element={<LandingPage />} />
-          <Route path="/signin" element={<AuthScreen defaultMode="signin" />} />
-          <Route path="/signup" element={<AuthScreen defaultMode="signup" />} />
-          
-          {/* PRIVATE SIDE */}
-          <Route
-            path="/app/*"
-            element={
-              <ThemeScope>
-                <ProtectedRoute>
-                  <AppLayout />
-                </ProtectedRoute>
-              </ThemeScope>
-            }
-          />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </Router>
+        <Router>
+          <Routes>
+            {/* Smart entry point — session-aware */}
+            <Route path="/" element={<RootRoute />} />
+            {/* Always-static marketing page — for the logo click, session-agnostic.
+                No session checks here at all, on purpose. */}
+            <Route path="/home" element={<LandingPage />} />
+            <Route path="/signin" element={<AuthScreen defaultMode="signin" />} />
+            <Route path="/signup" element={<AuthScreen defaultMode="signup" />} />
+            {/* PRIVATE SIDE */}
+            <Route
+              path="/app/*"
+              element={
+                <ThemeScope>
+                  <ProtectedRoute>
+                    <AppLayout />
+                  </ProtectedRoute>
+                </ThemeScope>
+              }
+            />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </Router>
       </BalanceVisibilityProvider>
     </InstallProvider>
   );

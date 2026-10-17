@@ -225,7 +225,7 @@ export default function NetWorth() {
       {activeTab === 'summary' && (
         <>
           <div className="networth-cards">
-            <div className="networth-card main">
+            <div className="networth-card primary">
               <div className="networth-label networth-label-row">Total Net Worth<EyeToggle /></div>
               <div className="networth-value"><Amount value={formatNaira(data.total)} /></div>
             </div>

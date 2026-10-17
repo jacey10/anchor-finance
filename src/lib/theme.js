@@ -2,7 +2,7 @@
 // Theme helpers. The light/dark choice is saved in the browser (no backend involved).
 // The theme only applies inside /app (see ThemeScope in App.jsx).
 
-const THEME_KEY = 'anchor-theme'; // 'system' | 'light' | 'dark'
+const THEME_KEY = 'epsilon-theme'; // 'system' | 'light' | 'dark'
 
 // Browser-bar colours, keep in sync with --bg-main in index.css and the script in index.html
 const BAR_COLORS = { light: '#FAF8F4', dark: '#0F1B2D' };

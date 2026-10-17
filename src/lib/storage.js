@@ -22,15 +22,16 @@ export const updateSetting = async (key, value) => {
 
 export const getAccounts = async () => {
   const userId = await getUserId();
-  const { data, error } = await supabase.from('accounts').select('id, name, currency, starting_balance, starting_balance_date, created_at').eq('user_id', userId).order('created_at', { ascending: true });
+  const { data, error } = await supabase.from('accounts').select('id, name, currency, account_type, starting_balance, starting_balance_date, created_at').eq('user_id', userId).order('created_at', { ascending: true });
   if (error) throw error;
-  return (data || []).map(acc => ({ ...acc, starting_balance: Number(acc.starting_balance) || 0 }));
+  return (data || []).map(acc => ({ ...acc, account_type: acc.account_type || 'savings', starting_balance: Number(acc.starting_balance) || 0 }));
 };
 
 export const addAccount = async (account) => {
   const userId = await getUserId();
   const { data, error } = await supabase.from('accounts').insert([{
     user_id: userId, name: account.name, currency: account.currency || 'NGN',
+    account_type: account.account_type || 'savings',
     starting_balance: Number(account.starting_balance) || 0,
     starting_balance_date: account.starting_balance_date || new Date().toISOString().slice(0, 10)
   }]).select().single();

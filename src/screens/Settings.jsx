@@ -93,7 +93,7 @@ export default function Settings() {
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `anchor-finance-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.download = `epsilon-${new Date().toISOString().slice(0, 10)}.csv`;
     a.click();
   };
 
@@ -103,17 +103,17 @@ export default function Settings() {
     try {
       if (navigator.share) {
         await navigator.share({
-          title: 'Anchor Vault',
-          text: 'Take control of your personal finances with Anchor Vault.',
+          title: 'Epsilon Finance',
+          text: 'Take control of your personal finances with Epsilon.',
           url: shareUrl,
         });
       } else {
         await navigator.clipboard.writeText(shareUrl);
-        alert('Anchor Vault link copied to clipboard!');
+        alert('Epsilon Finance link copied to clipboard!');
       }
     } catch (error) {
       if (error.name !== 'AbortError') {
-        console.error('Unable to share Anchor Vault:', error);
+        console.error('Unable to share Epsilon Finance:', error);
         alert('Unable to share the link. Please try again.');
       }
     }
@@ -214,7 +214,7 @@ export default function Settings() {
         <InstallAppCard />
       </div>
       
-      <h2 className="section-title">About Anchor Vault</h2>
+      <h2 className="section-title">About Epsilon</h2>
 
       <div className="list-wrap">
         <button
@@ -223,9 +223,9 @@ export default function Settings() {
           onClick={() => navigate('/home')}
         >
           <div className="list-row-content">
-            <div className="list-row-title">About Anchor Vault</div>
+            <div className="list-row-title">About Epsilon</div>
             <div className="list-row-meta">
-              Learn about Anchor Vault and its features.
+              Learn about Epsilon and its features.
             </div>
           </div>
           <span className="about-arrow" aria-hidden="true">›</span>
@@ -237,7 +237,7 @@ export default function Settings() {
           onClick={handleShare}
         >
           <div className="list-row-content">
-            <div className="list-row-title">Share Anchor Vault</div>
+            <div className="list-row-title">Share Epsilon</div>
             <div className="list-row-meta">
               Share the app with friends and colleagues.
             </div>
@@ -253,7 +253,7 @@ export default function Settings() {
           <div className="list-row-content">
             <div className="list-row-title">Help &amp; How to Use</div>
             <div className="list-row-meta">
-              Learn how to use Anchor Vault's features.
+              Learn how to use Epsilon's features.
             </div>
           </div>
           <span className="about-arrow" aria-hidden="true">›</span>
