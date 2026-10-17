@@ -62,6 +62,22 @@ export default function Dashboard() {
     return calculateHistoricalTrend(rawData.transactions, rawData.accounts, rawData.exchangeRate, rawData.goals);
   }, [rawData.transactions, rawData.accounts, rawData.exchangeRate, rawData.goals]);
 
+  // Account snapshot: NGN savings, NGN current, and the sum of every USD account shown as foreign currency
+  const accountSnapshot = useMemo(() => {
+    const accounts = data.accounts || [];
+    const ngnAccounts = accounts.filter((acc) => acc.currency !== 'USD');
+    const usdAccounts = accounts.filter((acc) => acc.currency === 'USD');
+    const savingsAccounts = ngnAccounts.filter((acc) => acc.account_type !== 'current');
+    const currentAccounts = ngnAccounts.filter((acc) => acc.account_type === 'current');
+    const sum = (list) => list.reduce((total, acc) => total + (Number(acc.balance) || 0), 0);
+    const label = (count, currency) => `${count} ${currency} ${count === 1 ? 'account' : 'accounts'}`;
+    return [
+      { key: 'savings', icon: '₦', name: 'Savings', sub: label(savingsAccounts.length, 'NGN'), amount: formatNaira(sum(savingsAccounts)), currency: 'NGN' },
+      { key: 'current', icon: '▣', name: 'Current', sub: label(currentAccounts.length, 'NGN'), amount: formatNaira(sum(currentAccounts)), currency: 'NGN' },
+      { key: 'foreign', icon: '$', name: 'Foreign currency', sub: label(usdAccounts.length, 'USD'), amount: formatUSD(sum(usdAccounts)), currency: 'USD' }
+    ];
+  }, [data.accounts]);
+
   useEffect(() => {
     const loadData = async () => {
       try {
@@ -457,27 +473,15 @@ export default function Dashboard() {
             </div>
             <button className="btn-link all-goals-link">Accounts ↗</button>
           </div>
-          <div className="account-snapshot-row">
-            <div className="account-snapshot-left">
-              <div className="account-icon">₦</div>
-              <div><p className="account-name">Main savings</p><p className="account-type">Savings account</p></div>
+          {accountSnapshot.map((row) => (
+            <div key={row.key} className="account-snapshot-row">
+              <div className="account-snapshot-left">
+                <div className="account-icon">{row.icon}</div>
+                <div><p className="account-name">{row.name}</p><p className="account-type">{row.sub}</p></div>
+              </div>
+              <div className="account-balance"><p className="account-amount"><Amount value={row.amount} /></p><p className="account-currency">{row.currency} · Available</p></div>
             </div>
-            <div className="account-balance"><p className="account-amount">₦4,850,000</p><p className="account-currency">NGN · Available</p></div>
-          </div>
-          <div className="account-snapshot-row">
-            <div className="account-snapshot-left">
-              <div className="account-icon">$</div>
-              <div><p className="account-name">Dollar reserve</p><p className="account-type">Foreign currency</p></div>
-            </div>
-            <div className="account-balance"><p className="account-amount">$2,100</p><p className="account-currency">USD · Available</p></div>
-          </div>
-          <div className="account-snapshot-row">
-            <div className="account-snapshot-left">
-              <div className="account-icon">▣</div>
-              <div><p className="account-name">Everyday spending</p><p className="account-type">Current account</p></div>
-            </div>
-            <div className="account-balance"><p className="account-amount">₦285,400</p><p className="account-currency">NGN · Available</p></div>
-          </div>
+          ))}
         </div>
 
         {/* Row 5: Impulse Spending */}
