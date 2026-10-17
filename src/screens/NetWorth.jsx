@@ -17,14 +17,18 @@ const getCurrentMonthKey = () => {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 };
 
+// Account types: every account (NGN or USD) is either savings or current
+const ACCOUNT_TYPE_LABELS = { savings: 'Savings', current: 'Current' };
+
 export default function NetWorth() {
   const [data, setData] = useState({ total: 0, ngn: 0, usd: 0, goalBalance: 0, accounts: [] });
   const [exchangeRate, setExchangeRate] = useState(1);
   const [activeTab, setActiveTab] = useState('summary');
+  const [accountsSubTab, setAccountsSubTab] = useState('ngn');
   const [transfers, setTransfers] = useState([]);
   const [feeMonth, setFeeMonth] = useState(getCurrentMonthKey());
   const [showAddModal, setShowAddModal] = useState(false);
-  const [newAccountForm, setNewAccountForm] = useState({ name: '', currency: 'NGN', starting_balance: '', starting_balance_date: new Date().toISOString().slice(0, 10) });
+  const [newAccountForm, setNewAccountForm] = useState({ name: '', currency: 'NGN', account_type: 'savings', starting_balance: '', starting_balance_date: new Date().toISOString().slice(0, 10) });
   const [formError, setFormError] = useState('');
   const [showTransferModal, setShowTransferModal] = useState(false);
   const [transferForm, setTransferForm] = useState({ from_account_id: '', to_account_id: '', amount: '', fee: '', date: new Date().toISOString().slice(0, 10), note: '' });
@@ -81,7 +85,7 @@ export default function NetWorth() {
 
   const handleOpenAddModal = () => {
     setFormError('');
-    setNewAccountForm({ name: '', currency: activeTab === 'usd' ? 'USD' : 'NGN', starting_balance: '', starting_balance_date: new Date().toISOString().slice(0, 10) });
+    setNewAccountForm({ name: '', currency: accountsSubTab === 'usd' ? 'USD' : 'NGN', account_type: 'savings', starting_balance: '', starting_balance_date: new Date().toISOString().slice(0, 10) });
     setShowAddModal(true);
   };
 
@@ -97,7 +101,7 @@ export default function NetWorth() {
     if (data.accounts.some(acc => acc.name.toLowerCase() === name.toLowerCase())) { setFormError('An account with this name already exists.'); return; }
 
     try {
-      await addAccount({ name, currency: newAccountForm.currency, starting_balance: balance, starting_balance_date: date });
+      await addAccount({ name, currency: newAccountForm.currency, account_type: newAccountForm.account_type, starting_balance: balance, starting_balance_date: date });
       setShowAddModal(false);
       await fetchData();
     } catch (err) {
@@ -177,7 +181,7 @@ export default function NetWorth() {
   const toAccount = data.accounts.find(a => a.id === transferForm.to_account_id);
   const isCrossCurrency = fromAccount && toAccount && fromAccount.currency !== toAccount.currency;
   const convertedAmount = isCrossCurrency && transferForm.amount ? (fromAccount.currency === 'NGN' ? Number(transferForm.amount) / exchangeRate : Number(transferForm.amount) * exchangeRate) : null;
-  const filteredAccounts = data.accounts?.filter(acc => activeTab === 'ngn' ? acc.currency === 'NGN' : acc.currency === 'USD') || [];
+  const filteredAccounts = data.accounts?.filter(acc => accountsSubTab === 'ngn' ? acc.currency === 'NGN' : acc.currency === 'USD') || [];
 
   // Transfers & Fees tab: rows for the selected month + sum of bank charges only.
   // Charges = standalone 'bank_fee' amounts + the `fee` charged on 'transfer' rows
@@ -215,9 +219,9 @@ export default function NetWorth() {
       <p className="screen-sub">Your total wealth across all assets.</p>
 
       <div className="tab-row">
-        {['summary', 'ngn', 'usd', 'transfers'].map(tab => (
+        {['summary', 'accounts', 'transfers'].map(tab => (
           <button key={tab} className={`tab-button ${activeTab === tab ? 'active' : ''}`} onClick={() => setActiveTab(tab)}>
-            {tab === 'ngn' ? 'NGN' : tab === 'usd' ? 'USD' : tab === 'transfers' ? 'Transfers & Fees' : 'Summary'}
+            {tab === 'accounts' ? 'Accounts' : tab === 'transfers' ? 'Transfers & Fees' : 'Summary'}
           </button>
         ))}
       </div>
@@ -251,14 +255,22 @@ export default function NetWorth() {
         </>
       )}
 
-      {(activeTab === 'ngn' || activeTab === 'usd') && (
+      {activeTab === 'accounts' && (
         <>
+          <div className="tab-row sub-tab-row">
+            {['ngn', 'usd'].map(sub => (
+              <button key={sub} className={`tab-button ${accountsSubTab === sub ? 'active' : ''}`} onClick={() => setAccountsSubTab(sub)}>
+                {sub === 'ngn' ? 'NGN' : 'USD'}
+              </button>
+            ))}
+          </div>
+
           <div className="list-wrap">
-            {filteredAccounts.length === 0 ? <p className="hint-text">No {activeTab.toUpperCase()} accounts yet.</p> : filteredAccounts.map(acc => (
+            {filteredAccounts.length === 0 ? <p className="hint-text">No {accountsSubTab.toUpperCase()} accounts yet.</p> : filteredAccounts.map(acc => (
               <div key={acc.id} className="list-row">
                 <div className="list-row-content">
                   <div className="list-row-title">{acc.name}</div>
-                  <div className="list-row-meta">Starting: {acc.currency === 'NGN' ? formatNaira(acc.starting_balance || 0) : formatUSD(acc.starting_balance || 0)}</div>
+                  <div className="list-row-meta">{acc.account_type ? `${ACCOUNT_TYPE_LABELS[acc.account_type] || acc.account_type} · ` : ''}Starting: {acc.currency === 'NGN' ? formatNaira(acc.starting_balance || 0) : formatUSD(acc.starting_balance || 0)}</div>
                 </div>
                 <div className="list-row-actions">
                   <div className="list-row-amount">{acc.currency === 'NGN' ? formatNaira(acc.balance) : formatUSD(acc.balance)}</div>
@@ -267,7 +279,7 @@ export default function NetWorth() {
               </div>
             ))}
           </div>
-          <button className="btn btn-outline" style={{ marginTop: 20, width: '100%' }} onClick={handleOpenAddModal}>+ Add {activeTab === 'ngn' ? 'NGN' : 'USD'} Account</button>
+          <button className="btn btn-outline" style={{ marginTop: 20, width: '100%' }} onClick={handleOpenAddModal}>+ Add {accountsSubTab === 'ngn' ? 'NGN' : 'USD'} Account</button>
           <button className="btn btn-primary" style={{ marginTop: 12, width: '100%' }} onClick={handleOpenTransferModal}>↗ Transfer Between Accounts</button>
         </>
       )}
@@ -309,6 +321,7 @@ export default function NetWorth() {
           {formError && <div style={{ color: 'var(--accent-red)', fontSize: 13, background: 'var(--bg-warning)', padding: 10, borderRadius: 4 }}>{formError}</div>}
           <label className="form-label">Account Name<input type="text" value={newAccountForm.name} onChange={(e) => setNewAccountForm({ ...newAccountForm, name: e.target.value })} className="form-input" placeholder="e.g., Zenith Bank, Opay" required /></label>
           <label className="form-label">Currency<select value={newAccountForm.currency} onChange={(e) => setNewAccountForm({ ...newAccountForm, currency: e.target.value })} className="form-select"><option value="NGN">NGN (₦)</option><option value="USD">USD ($)</option></select></label>
+          <label className="form-label">Account Type<select value={newAccountForm.account_type} onChange={(e) => setNewAccountForm({ ...newAccountForm, account_type: e.target.value })} className="form-select">{Object.keys(ACCOUNT_TYPE_LABELS).map(type => (<option key={type} value={type}>{ACCOUNT_TYPE_LABELS[type]}</option>))}</select></label>
           <label className="form-label">Account Opened Date<input type="date" value={newAccountForm.starting_balance_date} onChange={(e) => setNewAccountForm({ ...newAccountForm, starting_balance_date: e.target.value })} className="form-input" required /></label>
           <label className="form-label">Starting Balance<input type="number" value={newAccountForm.starting_balance} onChange={(e) => setNewAccountForm({ ...newAccountForm, starting_balance: e.target.value })} className="form-input" placeholder="0.00" min="0" step="0.01" /></label>
           <div className="form-actions"><button type="button" className="btn btn-ghost" onClick={() => setShowAddModal(false)}>Cancel</button><button type="submit" className="btn btn-primary">Save Account</button></div>
